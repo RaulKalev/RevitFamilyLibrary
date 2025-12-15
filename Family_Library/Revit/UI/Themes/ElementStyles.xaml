@@ -1,0 +1,361 @@
+﻿<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+    xmlns:sys="clr-namespace:System.Windows;assembly=PresentationFramework"
+    xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+    xmlns:xctkPrimitives="clr-namespace:Xceed.Wpf.Toolkit.Primitives;assembly=Xceed.Wpf.Toolkit">
+
+
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.ComboBox.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/Family_Library;component/Revit/UI/Themes/DarkTheme.xaml" />
+
+    </ResourceDictionary.MergedDictionaries>
+    <!--  Flat icon button  -->
+    <Style x:Key="FlatIconButton" TargetType="{x:Type Button}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="6">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Opacity" Value="0.85" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="Opacity" Value="0.70" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.35" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--  Action button  -->
+    <Style x:Key="CustomActionButtonStyle" TargetType="{x:Type Button}">
+        <Setter Property="Width" Value="200" />
+        <Setter Property="Height" Value="50" />
+        <Setter Property="Margin" Value="0,5,0,0" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="Background" Value="{DynamicResource PrimaryBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border
+                        x:Name="ButtonBorder"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="5">
+                        <ContentPresenter
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Content="{TemplateBinding Content}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <!--  Hover Effect  -->
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="#70babc" />
+                            <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource IconHoverBrush}" />
+                        </Trigger>
+                        <!--  Pressed Effect  -->
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource IconHoverBrush}" />
+                            <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--  TextBox  -->
+    <Style x:Key="CustomTextBoxStyle" TargetType="{x:Type TextBox}">
+        <Setter Property="Background" Value="{DynamicResource SecondaryBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type TextBox}">
+                    <Border
+                        x:Name="Border"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="6">
+                        <ScrollViewer x:Name="PART_ContentHost" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource HighlightBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource IconBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--  ComboBox (re-use your known style approach)  -->
+    <Style
+        x:Key="DarkThemeComboBox"
+        BasedOn="{StaticResource MaterialDesignComboBox}"
+        TargetType="{x:Type ComboBox}">
+        <Setter Property="Background" Value="{DynamicResource SecondaryBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="4,0,4,0" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <!--  Checkbox  -->
+    <Style x:Key="CustomCheckBox" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <!--  Tabs  -->
+    <Style x:Key="DarkTabControl" TargetType="{x:Type TabControl}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!--  =============================  -->
+    <!--  Dark TabItem (rounded top only)  -->
+    <!--  =============================  -->
+    <Style x:Key="DarkTabItem" TargetType="TabItem">
+        <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="16,6" />
+        <Setter Property="Margin" Value="0,0,6,0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Grid>
+                        <Border
+                            x:Name="Border"
+                            Padding="{TemplateBinding Padding}"
+                            Background="{DynamicResource SecondaryBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8,8,0,0">
+                            <ContentPresenter
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                ContentSource="Header" />
+                        </Border>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+
+                        <!--  Selected tab  -->
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource PrimaryBackgroundBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+                        </Trigger>
+
+                        <!--  Hover  -->
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource HighlightBrush}" />
+                        </Trigger>
+
+                        <!--  Disabled  -->
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <!--  =================================  -->
+    <!--  Dark CheckComboBox (Xceed Toolkit)  -->
+    <!--  =================================  -->
+    <Style x:Key="DarkCheckComboBox" TargetType="{x:Type xctk:CheckComboBox}">
+
+        <Setter Property="Background" Value="{DynamicResource SecondaryBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="MinHeight" Value="24" />
+
+        <!--
+            Keep the default Xceed item visuals (includes the checkbox).
+            We only style what it already uses.
+        -->
+        <Style.Resources>
+            <!--  Force Xceed popup to use your dark theme instead of SystemColors (white)  -->
+            <SolidColorBrush x:Key="{x:Static sys:SystemColors.WindowBrushKey}" Color="{Binding Source={StaticResource PrimaryBackgroundBrush}, Path=Color}" />
+
+            <SolidColorBrush x:Key="{x:Static sys:SystemColors.WindowTextBrushKey}" Color="{Binding Source={StaticResource ForegroundBrush}, Path=Color}" />
+
+            <SolidColorBrush x:Key="{x:Static sys:SystemColors.HighlightBrushKey}" Color="{Binding Source={StaticResource HighlightBrush}, Path=Color}" />
+
+            <SolidColorBrush x:Key="{x:Static sys:SystemColors.HighlightTextBrushKey}" Color="{Binding Source={StaticResource ForegroundBrush}, Path=Color}" />
+
+            <!--  Popup ListBox  -->
+            <Style TargetType="{x:Type ListBox}">
+                <Setter Property="Background" Value="{DynamicResource PrimaryBackgroundBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+            </Style>
+
+            <!--  Popup items (Xceed uses SelectorItem as container)  -->
+            <Style TargetType="{x:Type xctkPrimitives:SelectorItem}">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Padding" Value="4,2" />
+                <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource HighlightBrush}" />
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource HighlightBrush}" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!--  Style the CheckBox that Xceed already puts inside each item  -->
+            <Style TargetType="{x:Type CheckBox}">
+                <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+                <Setter Property="Margin" Value="6,2" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Focusable" Value="False" />
+            </Style>
+
+        </Style.Resources>
+    </Style>
+
+
+    <!--  Popup list inside Xceed CheckComboBox  -->
+    <Style x:Key="CheckComboPopupListBox" TargetType="{x:Type ListBox}">
+        <Setter Property="Background" Value="{DynamicResource PrimaryBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style x:Key="CheckComboPopupListBoxItem" TargetType="{x:Type ListBoxItem}">
+        <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="4,2" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource HighlightBrush}" />
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{DynamicResource HighlightBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <!--  ============================  -->
+    <!--  Dark Material-like ScrollBar  -->
+    <!--  ============================  -->
+
+    <!--  Thumb  -->
+    <Style x:Key="DarkScrollBarThumb" TargetType="{x:Type Thumb}">
+        <Setter Property="Background" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="Opacity" Value="0.55" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Thumb}">
+                    <Border Background="{TemplateBinding Background}" CornerRadius="4" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Opacity" Value="0.85" />
+            </Trigger>
+            <Trigger Property="IsDragging" Value="True">
+                <Setter Property="Opacity" Value="1.0" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!--  ScrollBar (global)  -->
+    <Style TargetType="{x:Type ScrollBar}">
+        <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Width" Value="10" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ScrollBar}">
+                    <Grid Background="Transparent" SnapsToDevicePixels="True">
+                        <!--  rail  -->
+                        <Border
+                            Background="{DynamicResource SecondaryBackgroundBrush}"
+                            CornerRadius="4"
+                            Opacity="0.35" />
+
+                        <Track
+                            x:Name="PART_Track"
+                            Margin="3,0,-5,0"
+                            IsDirectionReversed="True"
+                            Maximum="{TemplateBinding Maximum}"
+                            Minimum="{TemplateBinding Minimum}"
+                            Orientation="{TemplateBinding Orientation}"
+                            ViewportSize="{TemplateBinding ViewportSize}"
+                            Value="{TemplateBinding Value}">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Visibility="Collapsed" />
+                            </Track.DecreaseRepeatButton>
+
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource DarkScrollBarThumb}" />
+                            </Track.Thumb>
+
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Visibility="Collapsed" />
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Orientation" Value="Vertical">
+                            <Setter Property="Width" Value="10" />
+                        </Trigger>
+                        <Trigger Property="Orientation" Value="Horizontal" />
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+
+    <Style TargetType="ScrollViewer">
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+    </Style>
+
+
+</ResourceDictionary>

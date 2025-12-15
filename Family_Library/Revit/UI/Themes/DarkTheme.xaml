@@ -1,0 +1,33 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--  Colors for Dark Theme  -->
+    <Color x:Key="PrimaryBackgroundColor">#FF1F1F1F</Color>
+    <Color x:Key="SecondaryBackgroundColor">#FF292929</Color>
+    <Color x:Key="BorderBrushColor">#FF444444</Color>
+    <Color x:Key="ForegroundColor">White</Color>
+    <Color x:Key="HighlightColor">#FF444444</Color>
+    <Color x:Key="IconColor">White</Color>
+    <Color x:Key="IconForegroundColor">#FF808080</Color>
+    <Color x:Key="IconHoverColor">#bebebe</Color>
+    <Color x:Key="IconPressedColor">Black</Color>
+    <Color x:Key="TextHighlightColor">#FF0078D7</Color>
+    <Color x:Key="SelectionHoverColor">#FF0078D7</Color>
+    <Color x:Key="SelectionPressedColor">#FFD7E4F2</Color>
+
+
+    <!--  Brushes  -->
+    <SolidColorBrush x:Key="PrimaryBackgroundBrush" Color="{StaticResource PrimaryBackgroundColor}" />
+    <SolidColorBrush x:Key="SecondaryBackgroundBrush" Color="{StaticResource SecondaryBackgroundColor}" />
+    <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderBrushColor}" />
+    <SolidColorBrush x:Key="ForegroundBrush" Color="{StaticResource ForegroundColor}" />
+    <SolidColorBrush x:Key="TextBrush" Color="White" />
+    <SolidColorBrush x:Key="HighlightBrush" Color="{StaticResource HighlightColor}" />
+    <SolidColorBrush x:Key="IconBrush" Color="{StaticResource IconColor}" />
+    <SolidColorBrush x:Key="IconForegroundBrush" Color="{StaticResource IconForegroundColor}" />
+    <SolidColorBrush x:Key="IconHoverBrush" Color="{StaticResource IconHoverColor}" />
+    <SolidColorBrush x:Key="IconPressedBrush" Color="{StaticResource IconPressedColor}" />
+    <SolidColorBrush x:Key="TextHighlightBrush" Color="{StaticResource TextHighlightColor}" />
+    <SolidColorBrush x:Key="SelectionHoverBrush" Color="{StaticResource SelectionHoverColor}" />
+    <SolidColorBrush x:Key="SelectionPressedBrush" Color="{StaticResource SelectionPressedColor}" />
+
+</ResourceDictionary>
