@@ -31,7 +31,10 @@
                 <ResourceDictionary Source="pack://application:,,,/Family_Library;component/Revit/UI/Themes/ElementStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
 
+            <conv:HoverAndMultiThumbsToVisibilityConverter x:Key="HoverAndMultiThumbsToVisibilityConverter" />
+            <conv:PlusOneConverter x:Key="PlusOneConverter" />
 
             <!--  Converter  -->
             <conv:StringListToTextConverter x:Key="TypeListConverter" />
@@ -88,68 +91,7 @@
                         Foreground="{DynamicResource ForegroundBrush}"
                         Text="Perekonnateek" />
 
-                    <!--  Search bar (like EliteSheets)  -->
-                    <Border
-                        Grid.Column="1"
-                        Width="100"
-                        Height="24"
-                        Margin="0,0,160,0"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Background="{DynamicResource SecondaryBackgroundBrush}"
-                        BorderBrush="{DynamicResource BorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Opacity="0.95">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="28" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="28" />
-                            </Grid.ColumnDefinitions>
 
-                            <materialDesign:PackIcon
-                                Grid.Column="0"
-                                Width="16"
-                                Height="16"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Foreground="{DynamicResource IconBrush}"
-                                Kind="Magnify" />
-
-                            <TextBox
-                                x:Name="SearchTextBox"
-                                Grid.Column="1"
-                                Margin="0"
-                                VerticalContentAlignment="Center"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                CaretBrush="{DynamicResource ForegroundBrush}"
-                                FontSize="12"
-                                Foreground="{DynamicResource ForegroundBrush}"
-                                Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                ToolTip="Otsi (nimi / kategooria / failitee / tüübid)" />
-
-                            <Button
-                                x:Name="ClearSearchButton"
-                                Grid.Column="2"
-                                Width="24"
-                                Height="24"
-                                Background="Transparent"
-                                BorderBrush="Transparent"
-                                Click="ClearSearchButton_Click"
-                                Style="{StaticResource FlatIconButton}"
-                                ToolTip="Puhasta otsing">
-                                <materialDesign:PackIcon
-                                    Width="16"
-                                    Height="16"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Foreground="{DynamicResource IconBrush}"
-                                    Kind="CloseCircleOutline" />
-                            </Button>
-                        </Grid>
-                    </Border>
 
                     <!--  Window buttons  -->
                     <StackPanel
@@ -288,16 +230,84 @@
                                                 SelectedItem="{Binding SelectedFilterCategory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                 Style="{StaticResource DarkThemeComboBox}"
                                                 ToolTip="Filtreeri loendit kasutajakategooria järgi" />
+                                            <!--  Search bar (like EliteSheets)  -->
+                                            <Border
+                                                Grid.Column="2"
+                                                Width="200"
+                                                Height="28"
+                                                Margin="0,0,40,0"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center"
+                                                Background="{DynamicResource SecondaryBackgroundBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Opacity="0.95">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="28" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="28" />
+                                                    </Grid.ColumnDefinitions>
 
+                                                    <materialDesign:PackIcon
+                                                        Grid.Column="0"
+                                                        Width="16"
+                                                        Height="16"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{DynamicResource IconBrush}"
+                                                        Kind="Magnify" />
+
+                                                    <TextBox
+                                                        x:Name="SearchTextBox"
+                                                        Grid.Column="1"
+                                                        Margin="0"
+                                                        VerticalContentAlignment="Center"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        CaretBrush="{DynamicResource ForegroundBrush}"
+                                                        FontSize="12"
+                                                        Foreground="{DynamicResource ForegroundBrush}"
+                                                        Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                                        ToolTip="Otsi (nimi / kategooria / failitee / tüübid)" />
+
+                                                    <Button
+                                                        x:Name="ClearSearchButton"
+                                                        Grid.Column="2"
+                                                        Width="24"
+                                                        Height="24"
+                                                        Background="Transparent"
+                                                        BorderBrush="Transparent"
+                                                        Click="ClearSearchButton_Click"
+                                                        Style="{StaticResource FlatIconButton}"
+                                                        ToolTip="Puhasta otsing">
+                                                        <materialDesign:PackIcon
+                                                            Width="16"
+                                                            Height="16"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            Foreground="{DynamicResource IconBrush}"
+                                                            Kind="CloseCircleOutline" />
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
                                             <Button
                                                 Grid.Column="2"
-                                                Width="140"
+                                                Width="32"
                                                 Height="28"
                                                 HorizontalAlignment="Right"
                                                 Command="{Binding RefreshCommand}"
-                                                Content="Värskenda"
-                                                Style="{StaticResource CustomActionButtonStyle}"
-                                                ToolTip="Lae indeks uuesti ja rakenda filtrid" />
+                                                Style="{StaticResource FlatIconButton}"
+                                                ToolTip="Lae indeks uuesti ja rakenda filtrid">
+
+                                                <materialDesign:PackIcon
+                                                    Width="24"
+                                                    Height="24"
+                                                    Foreground="{DynamicResource IconBrush}"
+                                                    Kind="Refresh" />
+                                            </Button>
+
                                         </Grid>
                                     </Border>
 
@@ -314,7 +324,11 @@
                                             Background="Transparent"
                                             BorderThickness="0"
                                             ItemsSource="{Binding Items}"
+                                            PreviewMouseWheel="ListView_PreviewMouseWheel"
+                                            ScrollViewer.CanContentScroll="False"
                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                            ScrollViewer.IsDeferredScrollingEnabled="False"
+                                            ScrollViewer.PanningMode="Both"
                                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                                             SelectedItem="{Binding SelectedItem}"
                                             SelectionChanged="LibraryList_SelectionChanged"
@@ -345,17 +359,93 @@
                                                                 <ColumnDefinition Width="320" />
                                                             </Grid.ColumnDefinitions>
 
-                                                            <!--  Thumbnail  -->
-                                                            <Border
-                                                                Grid.Column="0"
-                                                                Width="100"
-                                                                Height="100"
-                                                                Background="{DynamicResource SecondaryBackgroundBrush}"
-                                                                BorderBrush="{DynamicResource BorderBrush}"
-                                                                BorderThickness="1"
-                                                                CornerRadius="8">
-                                                                <Image Source="{Binding ThumbnailPath}" Stretch="Uniform" />
-                                                            </Border>
+
+                                                                <Grid Width="100" Height="100">
+                                                                    <!--  thumbnail container  -->
+                                                                    <Border
+                                                                        x:Name="ThumbHost"
+                                                                        Background="{DynamicResource SecondaryBackgroundBrush}"
+                                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                                        BorderThickness="1"
+                                                                        CornerRadius="8">
+
+                                                                        <Grid>
+                                                                            <Image Source="{Binding CurrentThumbnailPath}" Stretch="Uniform" />
+
+                                                                            <!--  Prev  -->
+                                                                            <Button
+                                                                                Width="26"
+                                                                                Height="26"
+                                                                                Margin="6,0,0,0"
+                                                                                HorizontalAlignment="Left"
+                                                                                VerticalAlignment="Center"
+                                                                                Click="PrevThumb_Click"
+                                                                                Style="{StaticResource FlatIconButton}">
+                                                                                <Button.Visibility>
+                                                                                    <MultiBinding Converter="{StaticResource HoverAndMultiThumbsToVisibilityConverter}">
+                                                                                        <Binding ElementName="ThumbHost" Path="IsMouseOver" />
+                                                                                        <Binding Path="HasMultipleThumbnails" />
+                                                                                    </MultiBinding>
+                                                                                </Button.Visibility>
+                                                                                <materialDesign:PackIcon
+                                                                                    Width="18"
+                                                                                    Height="18"
+                                                                                    Kind="ChevronLeft" />
+                                                                            </Button>
+
+                                                                            <!--  Next  -->
+                                                                            <Button
+                                                                                Width="26"
+                                                                                Height="26"
+                                                                                Margin="0,0,6,0"
+                                                                                HorizontalAlignment="Right"
+                                                                                VerticalAlignment="Center"
+                                                                                Click="NextThumb_Click"
+                                                                                Style="{StaticResource FlatIconButton}">
+                                                                                <Button.Visibility>
+                                                                                    <MultiBinding Converter="{StaticResource HoverAndMultiThumbsToVisibilityConverter}">
+                                                                                        <Binding ElementName="ThumbHost" Path="IsMouseOver" />
+                                                                                        <Binding Path="HasMultipleThumbnails" />
+                                                                                    </MultiBinding>
+                                                                                </Button.Visibility>
+                                                                                <materialDesign:PackIcon
+                                                                                    Width="18"
+                                                                                    Height="18"
+                                                                                    Kind="ChevronRight" />
+                                                                            </Button>
+
+                                                                            <!--  Counter  -->
+                                                                            <Border
+                                                                                Margin="0,0,0,6"
+                                                                                Padding="6,2"
+                                                                                HorizontalAlignment="Center"
+                                                                                VerticalAlignment="Bottom"
+                                                                                Background="#66000000"
+                                                                                CornerRadius="10">
+                                                                                <Border.Visibility>
+                                                                                    <MultiBinding Converter="{StaticResource HoverAndMultiThumbsToVisibilityConverter}">
+                                                                                        <Binding ElementName="ThumbHost" Path="IsMouseOver" />
+                                                                                        <Binding Path="HasMultipleThumbnails" />
+                                                                                    </MultiBinding>
+                                                                                </Border.Visibility>
+
+                                                                                <TextBlock FontSize="11" Foreground="White">
+                                                                                    <TextBlock.Text>
+                                                                                        <MultiBinding StringFormat="{}{0}/{1}">
+                                                                                            <Binding Converter="{StaticResource PlusOneConverter}" Path="SelectedThumbnailIndex" />
+                                                                                            <Binding Path="TypeThumbnailPaths.Count" />
+                                                                                        </MultiBinding>
+                                                                                    </TextBlock.Text>
+                                                                                </TextBlock>
+                                                                            </Border>
+
+                                                                        </Grid>
+                                                                    </Border>
+                                                                </Grid>
+
+
+
+
 
                                                             <!--  Info  -->
                                                             <StackPanel Grid.Column="1" Margin="12,0,12,0">
@@ -378,6 +468,29 @@
                                                                         Foreground="{DynamicResource ForegroundBrush}"
                                                                         Opacity="0.70"
                                                                         Text="{Binding RelativePath}" />
+
+                                                                </StackPanel>
+                                                                <StackPanel Margin="0,5,0,0" Orientation="Horizontal">
+                                                                    <TextBlock
+                                                                        Foreground="{DynamicResource ForegroundBrush}"
+                                                                        Opacity="0.70"
+                                                                        Text="Revit: " />
+                                                                    <TextBlock
+                                                                        Foreground="{DynamicResource ForegroundBrush}"
+                                                                        Opacity="0.85"
+                                                                        Text="{Binding SavedInRevitVersion}" />
+                                                                    <TextBlock
+                                                                        Foreground="{DynamicResource ForegroundBrush}"
+                                                                        Opacity="0.40"
+                                                                        Text="  |  " />
+                                                                    <TextBlock
+                                                                        Foreground="{DynamicResource ForegroundBrush}"
+                                                                        Opacity="0.70"
+                                                                        Text="Muudetud: " />
+                                                                    <TextBlock
+                                                                        Foreground="{DynamicResource ForegroundBrush}"
+                                                                        Opacity="0.85"
+                                                                        Text="{Binding LastModifiedLocal}" />
                                                                 </StackPanel>
 
                                                                 <TextBlock
@@ -389,7 +502,18 @@
                                                             </StackPanel>
 
                                                             <!--  User categories (multi)  -->
-                                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                            <StackPanel Grid.Column="2">
+                                                                <!--  Warning triangle  -->
+                                                                <materialDesign:PackIcon
+                                                                    Width="18"
+                                                                    Height="18"
+                                                                    Margin="0,0,0,6"
+                                                                    HorizontalAlignment="Right"
+                                                                    VerticalAlignment="Top"
+                                                                    Foreground="#F0A500"
+                                                                    Kind="Alert"
+                                                                    ToolTip="Perekond on juba projekti laetud"
+                                                                    Visibility="{Binding IsLoadedInProject, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                                                 <TextBlock
                                                                     Margin="0,0,0,6"
                                                                     FontWeight="Bold"
@@ -398,9 +522,13 @@
 
                                                                 <xctk:CheckComboBox
                                                                     Height="24"
+                                                                    Delimiter=", "
+                                                                    IsEditable="False"
                                                                     ItemsSource="{Binding DataContext.UserCategories, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                    SelectedItemsOverride="{Binding UserCategories}"
+                                                                    SelectedItemsOverride="{Binding UserCategories, Mode=TwoWay}"
                                                                     Style="{StaticResource DarkCheckComboBox}" />
+
+
 
                                                             </StackPanel>
                                                         </Grid>
@@ -414,7 +542,7 @@
                                     <Border
                                         Grid.Row="2"
                                         Margin="0,10,0,0"
-                                        Padding="10"
+                                        Padding="5"
                                         Background="{DynamicResource SecondaryBackgroundBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
                                         BorderThickness="1"
@@ -436,6 +564,7 @@
                                                 Grid.Column="1"
                                                 Width="180"
                                                 Height="40"
+                                                Margin="0"
                                                 Command="{Binding LoadSelectedCommand}"
                                                 Content="Laadi valitud"
                                                 FontSize="16"

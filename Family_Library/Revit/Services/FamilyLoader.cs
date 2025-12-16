@@ -1,6 +1,7 @@
 ﻿using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -8,35 +9,66 @@ namespace Family_Library.Services
 {
     public static class FamilyLoader
     {
-        private class AlwaysLoadOptions : IFamilyLoadOptions
+        private enum ConflictChoice
         {
-            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
+            Ask = 0,
+            Overwrite = 1,
+            Skip = 2
+        }
+
+        private class ConditionalLoadOptions : IFamilyLoadOptions
+        {
+            private readonly bool _overwrite;
+
+            public ConditionalLoadOptions(bool overwrite)
             {
-                overwriteParameterValues = true;
-                return true;
+                _overwrite = overwrite;
             }
 
-            public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
+            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
+            {
+                overwriteParameterValues = _overwrite;
+                return _overwrite;
+            }
+
+            public bool OnSharedFamilyFound(
+                Family sharedFamily,
+                bool familyInUse,
+                out FamilySource source,
+                out bool overwriteParameterValues)
             {
                 source = FamilySource.Family;
-                overwriteParameterValues = true;
-                return true;
+                overwriteParameterValues = _overwrite;
+                return _overwrite;
             }
         }
 
-        public static void LoadFamiliesIntoProject(UIApplication uiapp, Document doc, string[] familyPaths, bool placeAfterLoading)
+        public static void LoadFamiliesIntoProject(
+            UIApplication uiapp,
+            Document doc,
+            string[] familyPaths,
+            bool placeAfterLoading)
         {
             if (uiapp == null || doc == null || familyPaths == null || familyPaths.Length == 0)
                 return;
 
-            var opts = new AlwaysLoadOptions();
-
             int loaded = 0;
+            int skipped = 0;
             int failed = 0;
 
             Family loadedFamilyForPlacement = null;
 
-            using (var t = new Transaction(doc, "Load Families"))
+            var existingFamilies = new HashSet<string>(
+                new FilteredElementCollector(doc)
+                    .OfClass(typeof(Family))
+                    .Cast<Family>()
+                    .Select(f => f?.Name)
+                    .Where(n => !string.IsNullOrWhiteSpace(n)),
+                StringComparer.OrdinalIgnoreCase);
+
+            ConflictChoice conflictAll = ConflictChoice.Ask;
+
+            using (var t = new Transaction(doc, "Lae perekonnad"))
             {
                 t.Start();
 
@@ -50,9 +82,78 @@ namespace Family_Library.Services
                             continue;
                         }
 
-                        if (doc.LoadFamily(p, opts, out Family fam))
+                        var familyName = Path.GetFileNameWithoutExtension(p);
+                        var exists = !string.IsNullOrWhiteSpace(familyName)
+                                     && existingFamilies.Contains(familyName);
+
+                        bool overwriteThis = false;
+
+                        if (exists)
+                        {
+                            if (conflictAll == ConflictChoice.Ask)
+                            {
+                                var result = ShowConflictDialog(familyName, p);
+
+                                if (result == TaskDialogResult.Cancel)
+                                {
+                                    t.RollBack();
+                                    return;
+                                }
+
+                                switch (result)
+                                {
+                                    case TaskDialogResult.CommandLink1:
+                                        overwriteThis = true;
+                                        break;
+
+                                    case TaskDialogResult.CommandLink2:
+                                        overwriteThis = false;
+                                        break;
+
+                                    case TaskDialogResult.CommandLink3:
+                                        conflictAll = ConflictChoice.Overwrite;
+                                        overwriteThis = true;
+                                        break;
+
+                                    case TaskDialogResult.CommandLink4:
+                                        conflictAll = ConflictChoice.Skip;
+                                        overwriteThis = false;
+                                        break;
+
+                                    default:
+                                        overwriteThis = false;
+                                        break;
+                                }
+                            }
+                            else
+                            {
+                                overwriteThis = (conflictAll == ConflictChoice.Overwrite);
+                            }
+
+                            if (!overwriteThis)
+                            {
+                                skipped++;
+                                continue;
+                            }
+                        }
+
+                        Family fam;
+                        bool ok;
+
+                        if (exists)
+                        {
+                            ok = doc.LoadFamily(p, new ConditionalLoadOptions(true), out fam);
+                        }
+                        else
+                        {
+                            ok = doc.LoadFamily(p, out fam);
+                        }
+
+                        if (ok)
                         {
                             loaded++;
+                            existingFamilies.Add(familyName);
+
                             if (loadedFamilyForPlacement == null)
                                 loadedFamilyForPlacement = fam;
                         }
@@ -70,10 +171,6 @@ namespace Family_Library.Services
                 t.Commit();
             }
 
-            // Place only when:
-            // - checkbox is on
-            // - exactly 1 family selected
-            // - family loaded successfully
             if (placeAfterLoading && familyPaths.Length == 1 && loadedFamilyForPlacement != null)
             {
                 try
@@ -84,7 +181,7 @@ namespace Family_Library.Services
                         var symbol = doc.GetElement(symbolId) as FamilySymbol;
                         if (symbol != null)
                         {
-                            using (var t2 = new Transaction(doc, "Activate Type"))
+                            using (var t2 = new Transaction(doc, "Aktiveeri tüüp"))
                             {
                                 t2.Start();
                                 if (!symbol.IsActive)
@@ -97,19 +194,56 @@ namespace Family_Library.Services
                         }
                     }
 
-                    TaskDialog.Show("Family Library", "Family loaded, but no placeable type was found.");
+                    TaskDialog.Show("Perekonnateek",
+                        "Perekond laaditi, kuid paigutatavat tüüpi ei leitud.");
                 }
                 catch (Exception ex)
                 {
-                    TaskDialog.Show("Family Library", "Loaded family, but placement could not start:\n" + ex.Message);
+                    TaskDialog.Show("Perekonnateek",
+                        "Perekond laaditi, kuid paigutamine ebaõnnestus:\n" + ex.Message);
                 }
             }
-
             else
             {
-                // Minimal feedback; remove if you want fully silent
-                TaskDialog.Show("Family Library", $"Loaded: {loaded}\nFailed: {failed}");
+                TaskDialog.Show("Perekonnateek",
+                    $"Laetud: {loaded}\nVahele jäetud: {skipped}\nEbaõnnestunud: {failed}");
             }
+        }
+
+        private static TaskDialogResult ShowConflictDialog(string familyName, string fullPath)
+        {
+            var td = new TaskDialog("Perekonnateek")
+            {
+                MainInstruction = "Perekond on juba projektis olemas",
+                MainContent =
+                    $"Perekond \"{familyName}\" on juba projekti laaditud.\n\n" +
+                    "Mida soovid teha?",
+                AllowCancellation = true
+            };
+
+            td.AddCommandLink(
+                TaskDialogCommandLinkId.CommandLink1,
+                "Kirjuta üle",
+                "Asenda projekti olemasolev perekond teegis oleva versiooniga.");
+
+            td.AddCommandLink(
+                TaskDialogCommandLinkId.CommandLink2,
+                "Jäta vahele",
+                "Kasuta projekti olemasolevat perekonda.");
+
+            td.AddCommandLink(
+                TaskDialogCommandLinkId.CommandLink3,
+                "Kirjuta kõik üle",
+                "Kirjuta üle kõik projektis juba olemasolevad perekonnad.");
+
+            td.AddCommandLink(
+                TaskDialogCommandLinkId.CommandLink4,
+                "Jäta kõik vahele",
+                "Ära lae ühtegi perekonda, mis on juba projektis olemas.");
+
+            td.ExpandedContent = fullPath;
+
+            return td.Show();
         }
     }
 }

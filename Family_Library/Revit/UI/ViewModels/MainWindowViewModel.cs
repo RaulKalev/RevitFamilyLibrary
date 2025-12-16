@@ -1,19 +1,42 @@
-﻿using Autodesk.Revit.UI;
+﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using Family_Library.Revit.ExternalEvents;
 using Family_Library.Services;
 using Family_Library.UI.Models;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Windows.Input;
 using WinForms = System.Windows.Forms;
-using System.Collections.Generic;
 
 namespace Family_Library.UI.ViewModels
 {
     public class MainWindowViewModel
     {
+        private static ObservableCollection<string> LoadTypeThumbs(string libraryRoot, string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(libraryRoot) || string.IsNullOrWhiteSpace(relativePath))
+                return new ObservableCollection<string>();
+
+            // IMPORTANT: RelativePath in JSON uses "/" so normalize for windows folders
+            var rel = relativePath.Replace('/', Path.DirectorySeparatorChar);
+
+            var relDir = Path.GetDirectoryName(rel) ?? "";
+            var familyNameNoExt = Path.GetFileNameWithoutExtension(rel);
+
+            var folder = Path.Combine(libraryRoot, "Thumbs_Types", relDir, familyNameNoExt);
+            if (!Directory.Exists(folder))
+                return new ObservableCollection<string>();
+
+            var files = Directory.GetFiles(folder, "*.png")
+                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            return new ObservableCollection<string>(files);
+        }
+
         private List<LibraryItem> _allItems = new List<LibraryItem>();
 
         private string _searchText = "";
@@ -190,6 +213,42 @@ namespace Family_Library.UI.ViewModels
 
             // Keep full list in memory
             _allItems = list;
+            // Populate per-type thumbnail gallery (computed from disk)
+            foreach (var it in _allItems)
+            {
+                it.TypeThumbnailPaths = LoadTypeThumbs(root, it.RelativePath);
+                it.SelectedThumbnailIndex = 0;
+
+                // Optional: if you want family thumb to be first in gallery
+                // (so arrows appear even when only 1 type image exists)
+                // if (!string.IsNullOrWhiteSpace(it.ThumbnailPath) && File.Exists(it.ThumbnailPath))
+                // {
+                //     if (it.TypeThumbnailPaths == null) it.TypeThumbnailPaths = new ObservableCollection<string>();
+                //     if (!it.TypeThumbnailPaths.Contains(it.ThumbnailPath, StringComparer.OrdinalIgnoreCase))
+                //         it.TypeThumbnailPaths.Insert(0, it.ThumbnailPath);
+                // }
+            }
+
+            var doc = _uiapp?.ActiveUIDocument?.Document;
+
+            var loadedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (doc != null)
+            {
+                loadedNames = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Autodesk.Revit.DB.Family))
+                    .Cast<Autodesk.Revit.DB.Family>()
+                    .Select(f => f?.Name)
+                    .Where(n => !string.IsNullOrWhiteSpace(n))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            }
+
+            foreach (var it in _allItems)
+            {
+                // simplest + reliable: compare to RFA filename (your DisplayName)
+                it.IsLoadedInProject = !string.IsNullOrWhiteSpace(it.DisplayName)
+                                       && loadedNames.Contains(it.DisplayName);
+            }
 
             // Apply current search/category filters
             ApplyFilters();

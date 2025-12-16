@@ -8,12 +8,16 @@ using System.Windows.Controls;
 using System;
 using System.Collections.Generic;
 using System.Windows.Input;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 
 
 namespace Family_Library.UI
 {
     public partial class MainWindow : Window
     {
+        private bool _hooksInitialized = false;
+
         private readonly WindowResizer _windowResizer;
 
         public bool PlaceAfterLoading { get; set; } = false;
@@ -21,6 +25,8 @@ namespace Family_Library.UI
         public MainWindow(UIApplication uiapp)
         {
             InitializeComponent();
+            Closing += MainWindow_Closing;
+            InitCategoryChangeHooks();
 
             _windowResizer = new WindowResizer(this);
             MouseMove += Window_MouseMove;
@@ -29,7 +35,11 @@ namespace Family_Library.UI
             ExternalEventBridge.EnsureCreated();
             DataContext = new MainWindowViewModel(uiapp);
         }
-
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            var vm = DataContext as MainWindowViewModel;
+            vm?.SaveIndex();
+        }
         private void LibraryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             var vm = DataContext as MainWindowViewModel;
@@ -76,7 +86,7 @@ namespace Family_Library.UI
 
             // After user edits a row, update global category list from ALL items
             var allCats = vm.Items
-                .SelectMany(x => x.UserCategories ?? new System.Collections.Generic.List<string>())
+                .SelectMany(x => x.UserCategories ?? new ObservableCollection<string>())
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Distinct(System.StringComparer.OrdinalIgnoreCase)
                 .OrderBy(x => x)
@@ -118,7 +128,7 @@ namespace Family_Library.UI
             if (tags.Count == 0) return;
 
             if (item.UserCategories == null)
-                item.UserCategories = new System.Collections.Generic.List<string>();
+                item.UserCategories = new ObservableCollection<string>();
 
             foreach (var tag in tags)
             {
@@ -185,6 +195,119 @@ namespace Family_Library.UI
         private void BottomLeftCorner_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _windowResizer.StartResizing(e, ResizeDirection.BottomLeft);
         private void BottomRightCorner_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _windowResizer.StartResizing(e, ResizeDirection.BottomRight);
 
+        private void UserCategories_ItemSelectionChanged(object sender, RoutedEventArgs e)
+        {
+            var vm = DataContext as MainWindowViewModel;
+            if (vm == null) return;
+
+            // Persist per-family selection back to index.json (full list, not filtered)
+            vm.SaveIndex();
+
+            // If you are currently filtering by category, a change can affect visibility
+            // Easiest: re-apply filters by re-setting SearchText/SelectedFilterCategory indirectly,
+            // or add a public vm.RefreshFilteredView() method that calls ApplyFilters().
+            // Minimal “no new public methods” hack:
+            vm.SearchText = vm.SearchText; // triggers ApplyFilters() via setter
+        }
+        private void InitCategoryChangeHooks()
+        {
+            if (_hooksInitialized) return;
+            _hooksInitialized = true;
+
+            var vm = DataContext as MainWindowViewModel;
+            if (vm == null) return;
+
+            // Hook existing items
+            foreach (var it in vm.Items)
+                HookItem(it);
+
+            // Hook new items if list changes
+            vm.Items.CollectionChanged += (s, e) =>
+            {
+                if (e.NewItems != null)
+                    foreach (LibraryItem it in e.NewItems)
+                        HookItem(it);
+
+                if (e.OldItems != null)
+                    foreach (LibraryItem it in e.OldItems)
+                        UnhookItem(it);
+            };
+        }
+
+        private void HookItem(LibraryItem item)
+        {
+            if (item == null) return;
+
+            // Ensure not null
+            if (item.UserCategories == null)
+                item.UserCategories = new ObservableCollection<string>();
+
+            // Avoid double-hook
+            item.UserCategories.CollectionChanged -= ItemUserCategories_CollectionChanged;
+            item.UserCategories.CollectionChanged += ItemUserCategories_CollectionChanged;
+        }
+
+        private void UnhookItem(LibraryItem item)
+        {
+            if (item?.UserCategories == null) return;
+            item.UserCategories.CollectionChanged -= ItemUserCategories_CollectionChanged;
+        }
+
+        private void ItemUserCategories_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            var vm = DataContext as MainWindowViewModel;
+            if (vm == null) return;
+
+            // 1) Save immediately
+            vm.SaveIndex();
+
+            // 2) Re-apply filters immediately (your hack works, but let’s do it safely)
+            vm.SearchText = vm.SearchText;
+        }
+        private void ListView_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            var sv = FindVisualChild<ScrollViewer>(sender as DependencyObject);
+            if (sv == null) return;
+
+            // Smaller step = smoother. Tune this number.
+            const double factor = 0.35;
+
+            var newOffset = sv.VerticalOffset - (e.Delta * factor);
+            if (newOffset < 0) newOffset = 0;
+            if (newOffset > sv.ScrollableHeight) newOffset = sv.ScrollableHeight;
+
+            sv.ScrollToVerticalOffset(newOffset);
+            e.Handled = true;
+        }
+
+        private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T typed) return typed;
+
+                var result = FindVisualChild<T>(child);
+                if (result != null) return result;
+            }
+            return null;
+        }
+        private void PrevThumb_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            var item = btn?.DataContext as LibraryItem;
+            item?.PrevThumbnail();
+        }
+
+        private void NextThumb_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            var item = btn?.DataContext as LibraryItem;
+            item?.NextThumbnail();
+        }
 
     }
 }
