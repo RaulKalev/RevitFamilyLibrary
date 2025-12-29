@@ -8,9 +8,9 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
     Title="Perekonnateek"
-    Width="1100"
-    Height="700"
-    MinWidth="900"
+    Width="800"
+    Height="1000"
+    MinWidth="750"
     MinHeight="600"
     AllowsTransparency="True"
     Background="Transparent"
@@ -24,6 +24,7 @@
             <ResourceDictionary.MergedDictionaries>
                 <!--  Material Design default theme  -->
                 <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.ComboBox.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.ToggleButton.xaml" />
                 <!--  Material Design dark theme  -->
                 <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Dark.xaml" />
 
@@ -35,9 +36,12 @@
 
             <conv:HoverAndMultiThumbsToVisibilityConverter x:Key="HoverAndMultiThumbsToVisibilityConverter" />
             <conv:PlusOneConverter x:Key="PlusOneConverter" />
+            <conv:PathToImageConverter x:Key="PathToImageConverter" />
 
             <!--  Converter  -->
             <conv:StringListToTextConverter x:Key="TypeListConverter" />
+            <conv:TupleConverter x:Key="TupleConverter" />
+            <conv:IsCategoryAssignedConverter x:Key="IsCategoryAssignedConverter" />
         </ResourceDictionary>
     </Window.Resources>
 
@@ -191,8 +195,8 @@
                             <!--  =====================  -->
                             <!--  KOGU  -->
                             <!--  =====================  -->
-                            <TabItem Margin="20,10,-21,-13" Header="Kogu">
-                                <Grid Margin="10">
+                            <TabItem x:Name="KoguTab" Header="Kogu" Margin="-2,0,0,0">
+                                <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="*" />
@@ -207,11 +211,11 @@
                                         Background="{DynamicResource SecondaryBackgroundBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
                                         BorderThickness="1"
-                                        CornerRadius="10">
+                                        CornerRadius="0,10,10,10">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="240" />
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
 
@@ -220,93 +224,183 @@
                                                 Margin="0,0,10,0"
                                                 VerticalAlignment="Center"
                                                 Foreground="{DynamicResource ForegroundBrush}"
-                                                Text="Kasutajakategooria:" />
+                                                Text="Filtrid:" />
 
-                                            <ComboBox
-                                                Grid.Column="1"
-                                                Height="24"
-                                                VerticalContentAlignment="Center"
-                                                ItemsSource="{Binding UserCategories}"
-                                                SelectedItem="{Binding SelectedFilterCategory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                Style="{StaticResource DarkThemeComboBox}"
-                                                ToolTip="Filtreeri loendit kasutajakategooria järgi" />
-                                            <!--  Search bar (like EliteSheets)  -->
                                             <Border
-                                                Grid.Column="2"
-                                                Width="200"
+                                                Grid.Column="1"
                                                 Height="28"
-                                                Margin="0,0,40,0"
-                                                HorizontalAlignment="Right"
+                                                Width="150"
+                                                CornerRadius="6">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="{DynamicResource SecondaryBackgroundBrush}" />
+                                                        <Setter Property="BorderThickness" Value="1" />
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                                                        <Style.Triggers>
+                                                            <!-- Wrapper Glow Trigger -->
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="BorderBrush" Value="#FFAAAAAA" />
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <ComboBox
+                                                    BorderThickness="0"
+                                                    Background="Transparent"
+                                                    VerticalContentAlignment="Center"
+                                                    ItemsSource="{Binding UserCategories}"
+                                                    SelectedItem="{Binding SelectedFilterCategory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                    Style="{StaticResource DarkThemeComboBox}"
+                                                    ToolTip="Filtreeri loendit kasutajakategooria järgi" />
+                                            </Border>
+
+                                            <!--  Tag Filters (EL, EN, EA)  -->
+                                            <StackPanel
+                                                Grid.Column="2"
+                                                HorizontalAlignment="Left"
                                                 VerticalAlignment="Center"
-                                                Background="{DynamicResource SecondaryBackgroundBrush}"
-                                                BorderBrush="{DynamicResource BorderBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="8"
-                                                Opacity="0.95">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="28" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="28" />
-                                                    </Grid.ColumnDefinitions>
+                                                Orientation="Horizontal"
+                                                Margin="20,0,0,0">
+                                                
 
-                                                    <materialDesign:PackIcon
-                                                        Grid.Column="0"
-                                                        Width="16"
-                                                        Height="16"
-                                                        HorizontalAlignment="Center"
-                                                        VerticalAlignment="Center"
-                                                        Foreground="{DynamicResource IconBrush}"
-                                                        Kind="Magnify" />
 
-                                                    <TextBox
-                                                        x:Name="SearchTextBox"
-                                                        Grid.Column="1"
-                                                        Margin="0"
-                                                        VerticalContentAlignment="Center"
-                                                        Background="Transparent"
-                                                        BorderThickness="0"
-                                                        CaretBrush="{DynamicResource ForegroundBrush}"
-                                                        FontSize="12"
-                                                        Foreground="{DynamicResource ForegroundBrush}"
-                                                        Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                                        ToolTip="Otsi (nimi / kategooria / failitee / tüübid)" />
-
-                                                    <Button
-                                                        x:Name="ClearSearchButton"
-                                                        Grid.Column="2"
-                                                        Width="24"
-                                                        Height="24"
+                                                <CheckBox
+                                                    Content="EL"
+                                                    FontSize="14"
+                                                    IsChecked="{Binding IsElChecked}"
+                                                    Margin="0,0,15,0"
+                                                    Style="{StaticResource CustomCheckBox}"
+                                                    ToolTip="Näita EL" />
+                                                <CheckBox
+                                                    Content="EN"
+                                                    FontSize="14"
+                                                    IsChecked="{Binding IsEnChecked}"
+                                                    Margin="0,0,15,0"
+                                                    Style="{StaticResource CustomCheckBox}" 
+                                                    ToolTip="Näita EN"/>
+                                                <CheckBox
+                                                    Content="EA"
+                                                    FontSize="14"
+                                                    IsChecked="{Binding IsEaChecked}"
+                                                    Style="{StaticResource CustomCheckBox}"
+                                                    ToolTip="Näita EA"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                
+                                                <!-- 3D/2D Toggle (Restyled) -->
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,15,0">
+                                                    <TextBlock Text="3D" VerticalAlignment="Center" Foreground="{DynamicResource ForegroundBrush}" FontWeight="Bold" Margin="0,0,4,0" />
+                                                    <ToggleButton
+                                                        x:Name="ModeFilterToggle"
+                                                        Width="30"
+                                                        Height="30"
                                                         Background="Transparent"
                                                         BorderBrush="Transparent"
-                                                        Click="ClearSearchButton_Click"
-                                                        Style="{StaticResource FlatIconButton}"
-                                                        ToolTip="Puhasta otsing">
+                                                        IsChecked="{Binding Is2DMode}"
+                                                        ToolTip="Lülita 3D / 2D vahel">
+                                                        <ToggleButton.Template>
+                                                            <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                                                <Grid Background="Transparent">
+                                                                    <materialDesign:PackIcon
+                                                                        x:Name="ToggleIcon"
+                                                                        Width="30"
+                                                                        Height="30"
+                                                                        HorizontalAlignment="Center"
+                                                                        VerticalAlignment="Center"
+                                                                        Foreground="{DynamicResource IconBrush}"
+                                                                        Kind="ToggleSwitchOffOutline" />
+                                                                </Grid>
+                                                                <ControlTemplate.Triggers>
+                                                                    <!-- IsChecked = True => 2D Mode => Switch Right -->
+                                                                    <Trigger Property="IsChecked" Value="True">
+                                                                        <Setter TargetName="ToggleIcon" Property="Kind" Value="ToggleSwitch" />
+                                                                    </Trigger>
+                                                                    <!-- IsChecked = False => 3D Mode => Switch Left -->
+                                                                    <Trigger Property="IsChecked" Value="False">
+                                                                        <Setter TargetName="ToggleIcon" Property="Kind" Value="ToggleSwitchOffOutline" />
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </ToggleButton.Template>
+                                                    </ToggleButton>
+                                                    <TextBlock Text="2D" VerticalAlignment="Center" Foreground="{DynamicResource ForegroundBrush}" FontWeight="Bold" Margin="4,0,0,0" />
+                                                </StackPanel>
+
+                                                <!--  Search bar  -->
+                                                <Border
+                                                    Width="150"
+                                                    Height="28"
+                                                    Margin="0,0,10,0"
+                                                    VerticalAlignment="Center"
+                                                    Background="{DynamicResource SecondaryBackgroundBrush}"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="8"
+                                                    Opacity="0.95">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="28" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="28" />
+                                                        </Grid.ColumnDefinitions>
+
                                                         <materialDesign:PackIcon
+                                                            Grid.Column="0"
                                                             Width="16"
                                                             Height="16"
                                                             HorizontalAlignment="Center"
                                                             VerticalAlignment="Center"
                                                             Foreground="{DynamicResource IconBrush}"
-                                                            Kind="CloseCircleOutline" />
-                                                    </Button>
-                                                </Grid>
-                                            </Border>
-                                            <Button
-                                                Grid.Column="2"
-                                                Width="32"
-                                                Height="28"
-                                                HorizontalAlignment="Right"
-                                                Command="{Binding RefreshCommand}"
-                                                Style="{StaticResource FlatIconButton}"
-                                                ToolTip="Lae indeks uuesti ja rakenda filtrid">
+                                                            Kind="Magnify" />
 
-                                                <materialDesign:PackIcon
-                                                    Width="24"
-                                                    Height="24"
-                                                    Foreground="{DynamicResource IconBrush}"
-                                                    Kind="Refresh" />
-                                            </Button>
+                                                        <TextBox
+                                                            x:Name="SearchTextBox"
+                                                            Grid.Column="1"
+                                                            Margin="0"
+                                                            VerticalContentAlignment="Center"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            CaretBrush="{DynamicResource ForegroundBrush}"
+                                                            FontSize="14"
+                                                            Foreground="{DynamicResource ForegroundBrush}"
+                                                            Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                                            ToolTip="Otsi (nimi / kategooria / failitee / tüübid)" />
+
+                                                        <Button
+                                                            x:Name="ClearSearchButton"
+                                                            Grid.Column="2"
+                                                            Width="24"
+                                                            Height="24"
+                                                            Background="Transparent"
+                                                            BorderBrush="Transparent"
+                                                            Click="ClearSearchButton_Click"
+                                                            Style="{StaticResource FlatIconButton}"
+                                                            ToolTip="Puhasta otsing">
+                                                            <materialDesign:PackIcon
+                                                                Width="16"
+                                                                Height="16"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                Foreground="{DynamicResource IconBrush}"
+                                                                Kind="CloseCircleOutline" />
+                                                        </Button>
+                                                    </Grid>
+                                                </Border>
+
+                                                <Button
+                                                    Width="32"
+                                                    Height="28"
+                                                    Command="{Binding RefreshCommand}"
+                                                    Style="{StaticResource FlatIconButton}"
+                                                    ToolTip="Lae indeks uuesti ja rakenda filtrid">
+
+                                                    <materialDesign:PackIcon
+                                                        Width="24"
+                                                        Height="24"
+                                                        Foreground="{DynamicResource IconBrush}"
+                                                        Kind="Refresh" />
+                                                </Button>
+                                            </StackPanel>
 
                                         </Grid>
                                     </Border>
@@ -340,23 +434,91 @@
                                                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                                     <Setter Property="VerticalContentAlignment" Value="Stretch" />
                                                     <Setter Property="Padding" Value="0" />
+                                                    <Setter Property="Background" Value="Transparent" />
+                                                    <Setter Property="BorderThickness" Value="0" />
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="{x:Type ListViewItem}">
+                                                                <Border
+                                                                    x:Name="ItemBorder"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"
+                                                                    SnapsToDevicePixels="True">
+                                                                    <ContentPresenter />
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <!-- Selection trigger -->
+                                                                    <Trigger Property="IsSelected" Value="True">
+                                                                        <Setter TargetName="ItemBorder" Property="Background" Value="Transparent" />
+                                                                    </Trigger>
+                                                                    <!-- Hover trigger -->
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="ItemBorder" Property="Background" Value="Transparent" />
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
                                                 </Style>
                                             </ListView.ItemContainerStyle>
                                             <ListView.ItemTemplate>
                                                 <DataTemplate>
                                                     <Border
-                                                        Margin="0,0,0,0"
+                                                        x:Name="CardBorder"
+                                                        Margin="0,0,0,5"
                                                         Padding="10"
                                                         Background="{DynamicResource PrimaryBackgroundBrush}"
-                                                        BorderBrush="{DynamicResource BorderBrush}"
-                                                        BorderThickness="1"
-                                                        CornerRadius="10">
+                                                        BorderBrush="{DynamicResource PrimaryBackgroundBrush}"
+                                                        BorderThickness="2"
+                                                        CornerRadius="10"
+                                                        Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+                                                        
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Style.Triggers>
+                                                                    <!-- Hover trigger - only when not selected -->
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter Property="BorderBrush" Value="#3A3F4B" />
+                                                                    </Trigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        
+                                                        <Border.ContextMenu>
+                                                            <ContextMenu 
+                                                                Style="{StaticResource DarkContextMenu}"
+                                                                ItemsSource="{Binding PlacementTarget.Tag.AllUserCategories, RelativeSource={RelativeSource Self}}">
+                                                                <ContextMenu.ItemContainerStyle>
+                                                                    <Style TargetType="MenuItem" BasedOn="{StaticResource DarkMenuItem}">
+                                                                        <Setter Property="Header" Value="{Binding}" />
+                                                                        <Setter Property="IsChecked">
+                                                                            <Setter.Value>
+                                                                                <MultiBinding Converter="{StaticResource IsCategoryAssignedConverter}">
+                                                                                     <Binding RelativeSource="{RelativeSource AncestorType=ContextMenu}" Path="PlacementTarget.DataContext" />
+                                                                                     <Binding Path="." />
+                                                                                </MultiBinding>
+                                                                            </Setter.Value>
+                                                                        </Setter>
+
+                                                                        <Setter Property="Command" Value="{Binding PlacementTarget.Tag.ToggleCategoryCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                                        <Setter Property="CommandParameter">
+                                                                            <Setter.Value>
+                                                                                <MultiBinding Converter="{StaticResource TupleConverter}">
+                                                                                    <Binding RelativeSource="{RelativeSource AncestorType=ContextMenu}" Path="PlacementTarget.DataContext" />
+                                                                                    <Binding Path="." />
+                                                                                </MultiBinding>
+                                                                            </Setter.Value>
+                                                                        </Setter>
+                                                                    </Style>
+                                                                </ContextMenu.ItemContainerStyle>
+                                                            </ContextMenu>
+                                                        </Border.ContextMenu>
 
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="110" />
                                                                 <ColumnDefinition Width="*" />
-                                                                <ColumnDefinition Width="320" />
+                                                                <ColumnDefinition Width="Auto" />
                                                             </Grid.ColumnDefinitions>
 
 
@@ -370,7 +532,7 @@
                                                                         CornerRadius="8">
 
                                                                         <Grid>
-                                                                            <Image Source="{Binding CurrentThumbnailPath}" Stretch="Uniform" />
+                                                                            <Image Source="{Binding CurrentThumbnailPath, Converter={StaticResource PathToImageConverter}}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
 
                                                                             <!--  Prev  -->
                                                                             <Button
@@ -501,8 +663,8 @@
                                                                     TextWrapping="Wrap" />
                                                             </StackPanel>
 
-                                                            <!--  User categories (multi)  -->
-                                                            <StackPanel Grid.Column="2">
+                                                            <!--  User categories (multi) -> Tags  -->
+                                                            <StackPanel Grid.Column="2" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,5,0">
                                                                 <!--  Warning triangle  -->
                                                                 <materialDesign:PackIcon
                                                                     Width="18"
@@ -510,29 +672,40 @@
                                                                     Margin="0,0,0,6"
                                                                     HorizontalAlignment="Right"
                                                                     VerticalAlignment="Top"
-                                                                    Foreground="#F0A500"
-                                                                    Kind="Alert"
-                                                                    ToolTip="Perekond on juba projekti laetud"
-                                                                    Visibility="{Binding IsLoadedInProject, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                                                <TextBlock
-                                                                    Margin="0,0,0,6"
-                                                                    FontWeight="Bold"
-                                                                    Foreground="{DynamicResource ForegroundBrush}"
-                                                                    Text="Kasutajakategooriad" />
-
-                                                                <xctk:CheckComboBox
-                                                                    Height="24"
-                                                                    Delimiter=", "
-                                                                    IsEditable="False"
-                                                                    ItemsSource="{Binding DataContext.UserCategories, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                    SelectedItemsOverride="{Binding UserCategories, Mode=TwoWay}"
-                                                                    Style="{StaticResource DarkCheckComboBox}" />
-
-
-
+                                                                    Foreground="#FFC107"
+                                                                    Kind="AlertCircleOutline"
+                                                                    Visibility="{Binding IsLoadedInProject, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                                    ToolTip="Laetud projekti" />
+                                                                    
+                                                                <ItemsControl ItemsSource="{Binding UserCategories}" Margin="0,5,0,0">
+                                                                    <ItemsControl.ItemsPanel>
+                                                                        <ItemsPanelTemplate>
+                                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" />
+                                                                        </ItemsPanelTemplate>
+                                                                    </ItemsControl.ItemsPanel>
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate>
+                                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,6,0">
+                                                                                <materialDesign:PackIcon Kind="TagOutline" Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource IconBrush}"/>
+                                                                                <TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource ForegroundBrush}" VerticalAlignment="Center" />
+                                                                            </StackPanel>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
                                                             </StackPanel>
                                                         </Grid>
+                                                        
+                                                        <Border.Triggers>
+                                                            <EventTrigger RoutedEvent="Border.Loaded" />
+                                                        </Border.Triggers>
                                                     </Border>
+                                                    
+                                                    <DataTemplate.Triggers>
+                                                        <!-- Selection trigger -->
+                                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
+                                                            <Setter TargetName="CardBorder" Property="BorderBrush" Value="#4A5568" />
+                                                        </DataTrigger>
+                                                    </DataTemplate.Triggers>
                                                 </DataTemplate>
                                             </ListView.ItemTemplate>
                                         </ListView>
@@ -578,8 +751,8 @@
                             <!--  =====================  -->
                             <!--  SEADED  -->
                             <!--  =====================  -->
-                            <TabItem Margin="20,10,-20,-13" Header="Seaded">
-                                <Grid Margin="10">
+                            <TabItem Header="Seaded">
+                                <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
@@ -590,11 +763,20 @@
                                     <Border
                                         Grid.Row="0"
                                         Margin="0,0,0,10"
-                                        Padding="10"
-                                        Background="{DynamicResource SecondaryBackgroundBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="10">
+                                        Padding="10">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="{DynamicResource SecondaryBackgroundBrush}" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                                                <Setter Property="BorderThickness" Value="1" />
+                                                <Setter Property="CornerRadius" Value="10,10,10,10" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ElementName=KoguTab, Path=IsMouseOver}" Value="True">
+                                                        <Setter Property="CornerRadius" Value="0,10,10,10" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
@@ -669,7 +851,7 @@
                                     <!--  User categories manager  -->
                                     <Grid Grid.Row="2">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="420" />
+                                            <ColumnDefinition Width="300" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
 
@@ -690,20 +872,20 @@
                                                     Text="Kasutajakategooriad" />
 
                                                 <DockPanel Margin="0,0,0,10">
-                                                    <TextBox
-                                                        Width="260"
-                                                        Height="28"
-                                                        VerticalContentAlignment="Center"
-                                                        Style="{StaticResource CustomTextBoxStyle}"
-                                                        Text="{Binding NewUserCategory, UpdateSourceTrigger=PropertyChanged}"
-                                                        ToolTip="Lisa uus kategooria" />
                                                     <Button
-                                                        Width="120"
+                                                        DockPanel.Dock="Right"
+                                                        Width="80"
                                                         Height="28"
                                                         Margin="10,0,0,0"
                                                         Command="{Binding AddUserCategoryCommand}"
                                                         Content="Lisa"
                                                         Style="{StaticResource CustomActionButtonStyle}" />
+                                                    <TextBox
+                                                        Height="28"
+                                                        VerticalContentAlignment="Center"
+                                                        Style="{StaticResource CustomTextBoxStyle}"
+                                                        Text="{Binding NewUserCategory, UpdateSourceTrigger=PropertyChanged}"
+                                                        ToolTip="Lisa uus kategooria" />
                                                 </DockPanel>
 
                                                 <ListBox

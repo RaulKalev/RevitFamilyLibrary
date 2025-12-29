@@ -47,6 +47,18 @@ namespace Family_Library.Services
                 string typeFolder = Path.Combine(typeThumbsFolder, Path.GetDirectoryName(rel) ?? "");
                 string familyNameNoExt = Path.GetFileNameWithoutExtension(rel);
                 string familyTypeOutDir = Path.Combine(typeFolder, familyNameNoExt);
+
+                // Cleanup orphans: delete existing PNGs from previous runs
+                if (Directory.Exists(familyTypeOutDir))
+                {
+                    try
+                    {
+                        string[] oldFiles = Directory.GetFiles(familyTypeOutDir, "*.png");
+                        foreach (string f in oldFiles) File.Delete(f);
+                    }
+                    catch { }
+                }
+
                 Directory.CreateDirectory(familyTypeOutDir);
 
                 Document doc = null;
@@ -75,9 +87,8 @@ namespace Family_Library.Services
 
                     if (plan == null) continue;
 
-                    // Oversample export (2x) -> downsample to final square.
-                    // This makes thin symbols (like connector glyphs) much less noticeable.
-                    int exportPixels = pixelSize * 2;
+                    // Export at final size directly (no oversampling)
+                    int exportPixels = pixelSize;
 
                     // Snapshot potential connector ids (best-effort; not always available)
                     List<ElementId> connectorIds = GetConnectorIds(doc);
@@ -90,11 +101,11 @@ namespace Family_Library.Services
                         // Hide connectors in the view if we can (must be in transaction)
                         if (connectorIds.Count > 0)
                         {
-                            using (var tHide = new Transaction(doc, "Hide connectors in view"))
+                            using (var tDelete = new Transaction(doc, "Delete connectors"))
                             {
-                                tHide.Start();
-                                try { plan.HideElements(connectorIds); } catch { }
-                                tHide.Commit();
+                                tDelete.Start();
+                                try { doc.Delete(connectorIds); } catch { }
+                                tDelete.Commit();
                             }
                         }
 
@@ -314,11 +325,13 @@ namespace Family_Library.Services
             doc.ExportImage(opts);
 
             var after = Directory.GetFiles(dir, "*.png");
-            var newest = after
+            var newFiles = after
                 .Where(f => !before.Contains(f))
                 .Select(f => new FileInfo(f))
                 .OrderByDescending(f => f.LastWriteTimeUtc)
-                .FirstOrDefault();
+                .ToList();
+
+            var newest = newFiles.FirstOrDefault();
 
             if (newest == null || !newest.Exists)
                 return;
@@ -332,7 +345,15 @@ namespace Family_Library.Services
             }
             catch
             {
+                // Clean up temp file if move failed
+                try { if (newest.Exists) File.Delete(newest.FullName); } catch { }
                 return;
+            }
+
+            // Clean up any other temp files that may have been created
+            foreach (var tempFile in newFiles.Skip(1))
+            {
+                try { if (tempFile.Exists) File.Delete(tempFile.FullName); } catch { }
             }
 
             // Downsample/pad to final square
@@ -345,31 +366,42 @@ namespace Family_Library.Services
 
         private static void MakeSquarePngInPlace(string pngPath, int size)
         {
-            using (var src = new System.Drawing.Bitmap(pngPath))
-            using (var dst = new System.Drawing.Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
-            using (var g = System.Drawing.Graphics.FromImage(dst))
+            string tmp = pngPath + ".tmp";
+            bool success = false;
+
+            try
             {
-                // White canvas for clean look (matches your request)
-                g.Clear(System.Drawing.Color.White);
-                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                using (var src = new System.Drawing.Bitmap(pngPath))
+                using (var dst = new System.Drawing.Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
+                {
+                    using (var g = System.Drawing.Graphics.FromImage(dst))
+                    {
+                        // White canvas for clean look (matches your request)
+                        g.Clear(System.Drawing.Color.White);
+                        g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
 
-                double sx = (double)size / src.Width;
-                double sy = (double)size / src.Height;
-                double s = Math.Min(sx, sy);
+                        double sx = (double)size / src.Width;
+                        double sy = (double)size / src.Height;
+                        double s = Math.Min(sx, sy);
 
-                int w = (int)Math.Round(src.Width * s);
-                int h = (int)Math.Round(src.Height * s);
-                int x = (size - w) / 2;
-                int y = (size - h) / 2;
+                        int w = (int)Math.Round(src.Width * s);
+                        int h = (int)Math.Round(src.Height * s);
+                        int x = (size - w) / 2;
+                        int y = (size - h) / 2;
 
-                g.DrawImage(src, new System.Drawing.Rectangle(x, y, w, h));
+                        g.DrawImage(src, new System.Drawing.Rectangle(x, y, w, h));
+                    }
+                    dst.Save(tmp, System.Drawing.Imaging.ImageFormat.Png);
+                    success = true;
+                }
+            }
+            catch { }
 
-                string tmp = pngPath + ".tmp";
-                dst.Save(tmp, System.Drawing.Imaging.ImageFormat.Png);
-
+            if (success && File.Exists(tmp))
+            {
                 try
                 {
-                    File.Delete(pngPath);
+                    if (File.Exists(pngPath)) File.Delete(pngPath);
                     File.Move(tmp, pngPath);
                 }
                 catch

@@ -10,7 +10,7 @@ namespace Family_Library.Services
     public class AppSettings
     {
         public string LibraryRoot { get; set; } = "";
-        public int ThumbnailPixelSize { get; set; } = 1024;
+        public int ThumbnailPixelSize { get; set; } = 384;
 
         // NEW: user-maintained list
         public List<string> UserCategories { get; set; } = new List<string>();

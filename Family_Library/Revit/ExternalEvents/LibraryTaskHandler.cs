@@ -64,9 +64,11 @@ namespace Family_Library.Revit.ExternalEvents
             finally
             {
                 Request.TaskType = LibraryTaskType.None;
+                OnCompleted?.Invoke(this, EventArgs.Empty);
             }
         }
 
+        public event EventHandler OnCompleted;
         public string GetName() => "Family Library Tasks";
     }
 }

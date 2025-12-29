@@ -12,7 +12,7 @@ namespace Family_Library.UI
         private bool _isResizing;
 
         // Match your MainWindow.xaml MinWidth / MinHeight
-        private const double MIN_WIDTH = 900;
+        private const double MIN_WIDTH = 750;
         private const double MIN_HEIGHT = 600;
 
         // Optional: set this from MainWindow if you want resizing to ignore an area (e.g. the ListView)

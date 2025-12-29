@@ -29,8 +29,8 @@ namespace Family_Library.Services
             // Load existing index so we can update only new/changed items
             var existingList = File.Exists(indexPath) ? IndexStore.Read(indexPath) : new List<LibraryItem>();
             var map = existingList
-                .Where(x => !string.IsNullOrWhiteSpace(x.FullPath))
-                .ToDictionary(x => x.FullPath, StringComparer.OrdinalIgnoreCase);
+                .Where(x => !string.IsNullOrWhiteSpace(x.RelativePath))
+                .ToDictionary(x => x.RelativePath.Replace('\\', '/'), StringComparer.OrdinalIgnoreCase);
 
             var rfas = Directory.GetFiles(familiesFolder, "*.rfa", SearchOption.AllDirectories);
 
@@ -38,25 +38,25 @@ namespace Family_Library.Services
             {
                 var lastWriteUtc = File.GetLastWriteTimeUtc(rfa);
 
-                // If unchanged -> skip completely (fast re-index)
-                if (map.TryGetValue(rfa, out var existing))
-                {
-                    if (existing.LastWriteTimeUtc >= lastWriteUtc)
-                        continue;
-                }
-
                 var rel = GetRelativePath(familiesFolder, rfa);
+                var relNormalized = rel.Replace('\\', '/');
                 var thumb = Path.Combine(thumbsFolder, Path.ChangeExtension(rel, ".png"));
                 Directory.CreateDirectory(Path.GetDirectoryName(thumb));
+
+                // Check existing by RelativePath
+                map.TryGetValue(relNormalized, out var existing);
+
+                // If unchanged -> skip completely (fast re-index)
+                if (existing != null && existing.LastWriteTimeUtc >= lastWriteUtc)
+                    continue;
 
                 // New or update
                 var item = existing ?? new LibraryItem();
 
                 item.DisplayName = Path.GetFileNameWithoutExtension(rfa);
                 item.Category = item.Category ?? "";
-                item.RelativePath = rel.Replace('\\', '/');
-                item.FullPath = rfa;
-                item.ThumbnailPath = File.Exists(thumb) ? thumb : "";
+                item.RelativePath = relNormalized;
+                // FullPath and ThumbnailPath are computed at runtime, not stored
 
                 // NEW: timestamp + Revit version
                 item.LastWriteTimeUtc = lastWriteUtc;
@@ -65,7 +65,7 @@ namespace Family_Library.Services
                 // Expensive part: only for new/changed
                 TryReadFamilyMetadata(revitApp, rfa, item);
 
-                map[rfa] = item;
+                map[relNormalized] = item;
             }
 
             IndexStore.Write(indexPath, map.Values.OrderBy(x => x.DisplayName).ToList());

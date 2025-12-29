@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -11,9 +12,13 @@ namespace Family_Library.UI.Models
         public string DisplayName { get; set; } = "";
         public string Category { get; set; } = "";
         public string RelativePath { get; set; } = "";
+
+        // Not serialized - computed at runtime from RelativePath + LibraryRoot
+        [JsonIgnore]
         public string FullPath { get; set; } = "";
 
-        // Main “family” thumbnail (fallback)
+        // Main "family" thumbnail (fallback) - computed at runtime
+        [JsonIgnore]
         public string ThumbnailPath { get; set; } = "";
 
         public List<string> TypeNames { get; set; } = new List<string>();
@@ -22,15 +27,20 @@ namespace Family_Library.UI.Models
         public string SavedInRevitVersion { get; set; } = "";
         public DateTime LastWriteTimeUtc { get; set; } = default;
 
+        // Computed property - not stored
+        [JsonIgnore]
         public string LastModifiedLocal =>
             LastWriteTimeUtc == default ? "" : LastWriteTimeUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
 
+        // Runtime state - not stored
+        [JsonIgnore]
         public bool IsLoadedInProject { get; set; } = false;
 
         public ObservableCollection<string> UserCategories { get; set; } = new ObservableCollection<string>();
 
-        // Per-type gallery thumbnails
+        // Per-type gallery thumbnails - computed at runtime from disk
         private ObservableCollection<string> _typeThumbnailPaths = new ObservableCollection<string>();
+        [JsonIgnore]
         public ObservableCollection<string> TypeThumbnailPaths
         {
             get => _typeThumbnailPaths;
@@ -46,6 +56,7 @@ namespace Family_Library.UI.Models
         }
 
         private int _selectedThumbnailIndex = 0;
+        [JsonIgnore]
         public int SelectedThumbnailIndex
         {
             get => _selectedThumbnailIndex;
@@ -68,6 +79,7 @@ namespace Family_Library.UI.Models
             }
         }
 
+        [JsonIgnore]
         public string CurrentThumbnailPath
         {
             get
@@ -81,8 +93,11 @@ namespace Family_Library.UI.Models
             }
         }
 
+        [JsonIgnore]
         public bool HasMultipleThumbnails => (TypeThumbnailPaths?.Count ?? 0) > 1;
+        [JsonIgnore]
         public bool CanPrevThumbnail => HasMultipleThumbnails && SelectedThumbnailIndex > 0;
+        [JsonIgnore]
         public bool CanNextThumbnail => HasMultipleThumbnails && SelectedThumbnailIndex < (TypeThumbnailPaths.Count - 1);
 
         public void PrevThumbnail()

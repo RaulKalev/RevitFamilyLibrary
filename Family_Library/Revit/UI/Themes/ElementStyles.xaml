@@ -119,7 +119,7 @@
         </Setter>
     </Style>
 
-    <!--  ComboBox (re-use your known style approach)  -->
+    <!--  ComboBox  -->
     <Style
         x:Key="DarkThemeComboBox"
         BasedOn="{StaticResource MaterialDesignComboBox}"
@@ -130,18 +130,78 @@
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="4,0,4,0" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
+        
+        <!-- Fix: Offset dropdown by using margin on the items container or popup. 
+             MaterialDesignThemes ComboBox uses a Popup. We can adjust the ItemContainerStyle to make items compact.
+        -->
+        <Setter Property="ItemContainerStyle">
+            <Setter.Value>
+                <Style TargetType="{x:Type ComboBoxItem}" BasedOn="{StaticResource MaterialDesignComboBoxItemStyle}">
+                    <Setter Property="Padding" Value="8,4" /> <!-- Compact padding -->
+                    <Setter Property="MinHeight" Value="24" /> <!-- Compact height -->
+                </Style>
+            </Setter.Value>
+        </Setter>
+        
+        <Style.Resources>
+           <!-- Move popup down slightly via translation if possible, or simple margin on popup content-->
+           <Style TargetType="Popup">
+                <!-- Using Bottom placement with explicit large offset to clear the box -->
+               <Setter Property="Placement" Value="Bottom" />
+               <Setter Property="VerticalOffset" Value="32"/>
+           </Style>
+        </Style.Resources>
     </Style>
 
-    <!--  Checkbox  -->
+    <!--  Checkbox with Material Icons  -->
     <Style x:Key="CustomCheckBox" TargetType="CheckBox">
         <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
         <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type CheckBox}">
+                    <StackPanel Orientation="Horizontal" Background="Transparent">
+                        <Grid Width="20" Height="20">
+                            <!-- Unchecked Icon -->
+                            <materialDesign:PackIcon Kind="CheckboxBlankOutline" 
+                                                     Width="20" Height="20" 
+                                                     Foreground="{DynamicResource IconBrush}"
+                                                     x:Name="UncheckedIcon"/>
+                             <!-- Checked Icon -->
+                            <materialDesign:PackIcon Kind="CheckboxMarked" 
+                                                     Width="20" Height="20" 
+                                                     Foreground="{DynamicResource HighlightBrush}"
+                                                     x:Name="CheckedIcon"
+                                                     Visibility="Collapsed"/>
+                        </Grid>
+                        <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                             <Setter TargetName="CheckedIcon" Property="Visibility" Value="Visible" />
+                             <Setter TargetName="UncheckedIcon" Property="Visibility" Value="Collapsed" />
+                             <Setter TargetName="CheckedIcon" Property="Foreground" Value="{DynamicResource IconBrush}" />
+                        </Trigger>
+                        <!-- Lighter hover effect (using opacity instead of full highlight color) -->
+                        <Trigger Property="IsMouseOver" Value="True">
+                             <Setter TargetName="UncheckedIcon" Property="Opacity" Value="0.7" />
+                             <Setter TargetName="CheckedIcon" Property="Opacity" Value="0.7" />
+                        </Trigger>
+                         <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!--  Tabs  -->
     <Style x:Key="DarkTabControl" TargetType="{x:Type TabControl}">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
+        <!-- Remove default padding to make header touch content area -->
+        <Setter Property="Padding" Value="0" />
     </Style>
 
     <!--  =============================  -->
@@ -150,21 +210,23 @@
     <Style x:Key="DarkTabItem" TargetType="TabItem">
         <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Padding" Value="16,6" />
-        <Setter Property="Margin" Value="0,0,6,0" />
+        <!-- Adjust padding/margin to make them look like tabs sitting on the bar -->
+        <Setter Property="Padding" Value="20,8" />
+        <Setter Property="Margin" Value="0,0,-1,0" /> <!-- Negative margin to overlap borders if needed -->
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TabItem">
-                    <Grid>
+                    <Grid VerticalAlignment="Bottom">
                         <Border
                             x:Name="Border"
                             Padding="{TemplateBinding Padding}"
                             Background="{DynamicResource SecondaryBackgroundBrush}"
                             BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8,8,0,0">
+                            BorderThickness="1,1,1,0" 
+                            CornerRadius="8,8,0,0"
+                            Margin="0,0,4,-1"> <!-- -1 bottom margin to overlap the content border below -->
                             <ContentPresenter
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
@@ -173,23 +235,41 @@
                     </Grid>
 
                     <ControlTemplate.Triggers>
-
                         <!--  Selected tab  -->
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource PrimaryBackgroundBrush}" />
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource SecondaryBackgroundBrush}" /> <!-- Match content bg -->
+                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                             <!-- Make it look like it's part of the content below by hiding bottom border (already 0) and setting ZIndex -->
+                            <Setter Property="Panel.ZIndex" Value="100" />
                             <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
                         </Trigger>
-
-                        <!--  Hover  -->
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource HighlightBrush}" />
+                        
+                        <!-- Unselected Tab look -->
+                        <Trigger Property="IsSelected" Value="False">
+                             <Setter TargetName="Border" Property="Background" Value="Transparent" />
+                             <Setter TargetName="Border" Property="BorderThickness" Value="0" /> 
+                             <!-- Optional: faint border for unselected -->
                         </Trigger>
+
+                        <!--  Hover - MOVED to ElementName trigger to avoid full tab hover  -->
+                        <Trigger SourceName="Border" Property="IsMouseOver" Value="True">
+                            <!-- Subtle hover for tab header -->
+                             <Setter TargetName="Border" Property="Background" Value="#33FFFFFF" />
+                        </Trigger>
+                        
+                        <!-- Selected Hover override -->
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsSelected" Value="True" />
+                                <Condition SourceName="Border" Property="IsMouseOver" Value="True" />
+                            </MultiTrigger.Conditions>
+                             <Setter TargetName="Border" Property="Background" Value="{DynamicResource SecondaryBackgroundBrush}" />
+                        </MultiTrigger>
 
                         <!--  Disabled  -->
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4" />
                         </Trigger>
-
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -244,12 +324,9 @@
                 </Style.Triggers>
             </Style>
 
-            <!--  Style the CheckBox that Xceed already puts inside each item  -->
-            <Style TargetType="{x:Type CheckBox}">
-                <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
-                <Setter Property="Margin" Value="6,2" />
-                <Setter Property="Cursor" Value="Hand" />
-                <Setter Property="Focusable" Value="False" />
+            <!--  Style the CheckBox that Xceed already puts inside each item - Custom Icon Style -->
+            <Style TargetType="{x:Type CheckBox}" BasedOn="{StaticResource CustomCheckBox}">
+                 <Setter Property="Margin" Value="6,2" />
             </Style>
 
         </Style.Resources>
@@ -357,5 +434,82 @@
         <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
     </Style>
 
+    <!--  Dark ContextMenu - Complete template override to remove white icon column  -->
+    <Style x:Key="DarkContextMenu" TargetType="{x:Type ContextMenu}">
+        <Setter Property="Background" Value="{DynamicResource SecondaryBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ContextMenu}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="2"
+                            Padding="{TemplateBinding Padding}">
+                        <ScrollViewer Background="{DynamicResource SecondaryBackgroundBrush}"
+                                    Style="{DynamicResource {ComponentResourceKey ResourceId=MenuScrollViewer, TypeInTargetAssembly={x:Type FrameworkElement}}}">
+                            <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" 
+                                          SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                        </ScrollViewer>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="DarkMenuItem" TargetType="{x:Type MenuItem}">
+        <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Height" Value="24" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type MenuItem}">
+                    <Border x:Name="Border" 
+                            Background="{TemplateBinding Background}" 
+                            BorderThickness="0"
+                            Padding="{TemplateBinding Padding}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="20" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- Checkmark area -->
+                            <materialDesign:PackIcon 
+                                Grid.Column="0"
+                                Kind="Check" 
+                                Width="14" 
+                                Height="14"
+                                Foreground="{DynamicResource ForegroundBrush}"
+                                x:Name="CheckMark"
+                                Visibility="Collapsed" />
+                            
+                            <!-- Header text -->
+                            <ContentPresenter 
+                                Grid.Column="1"
+                                ContentSource="Header" 
+                                RecognizesAccessKey="True"
+                                Margin="4,0,0,0"
+                                VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="CheckMark" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="#33FFFFFF" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 
 </ResourceDictionary>
