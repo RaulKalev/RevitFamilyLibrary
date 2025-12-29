@@ -16,6 +16,9 @@ namespace Family_Library.Services
         {
             if (string.IsNullOrWhiteSpace(libraryRoot) || !Directory.Exists(libraryRoot))
                 return;
+            Directory.CreateDirectory(Path.Combine(libraryRoot, "Families"));
+            Directory.CreateDirectory(Path.Combine(libraryRoot, "Thumbs"));
+            Directory.CreateDirectory(Path.Combine(libraryRoot, "Thumbs_Types"));
 
             var familiesFolder = GetFamiliesFolder(libraryRoot);
             var thumbsFolder = Path.Combine(libraryRoot, "Thumbs");
@@ -123,11 +126,29 @@ namespace Family_Library.Services
         {
             var families = Path.Combine(libraryRoot, "Families");
 
-            if (Directory.Exists(families) && Directory.GetFiles(families, "*.rfa", SearchOption.AllDirectories).Any())
+            // Preferred layout
+            if (Directory.Exists(families) &&
+                Directory.GetFiles(families, "*.rfa", SearchOption.AllDirectories).Any())
                 return families;
 
-            return libraryRoot;
+            // Legacy layout: RFAs directly under libraryRoot (but avoid scanning system folders)
+            bool hasRfasInRoot = Directory.GetFiles(libraryRoot, "*.rfa", SearchOption.AllDirectories)
+                .Any(p =>
+                {
+                    // Skip generated/system folders
+                    var rel = p.Substring(libraryRoot.Length).TrimStart(Path.DirectorySeparatorChar, '/');
+                    return !rel.StartsWith("Thumbs" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                        && !rel.StartsWith("Thumbs_Types" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+                });
+
+            if (hasRfasInRoot)
+                return libraryRoot;
+
+            // If nothing exists yet, default to the preferred layout and create it
+            Directory.CreateDirectory(families);
+            return families;
         }
+
 
         private static string GetRelativePath(string basePath, string fullPath)
         {
@@ -204,6 +225,7 @@ namespace Family_Library.Services
 
             return "";
         }
+
         private static ObservableCollection<string> LoadTypeThumbs(string libraryRoot, string relativePath)
         {
             var relDir = Path.GetDirectoryName(relativePath) ?? "";

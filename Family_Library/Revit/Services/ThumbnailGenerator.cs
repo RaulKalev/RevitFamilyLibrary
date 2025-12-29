@@ -15,7 +15,10 @@ namespace Family_Library.Services
             if (revitApp == null) return;
             if (string.IsNullOrWhiteSpace(libraryRoot) || !Directory.Exists(libraryRoot)) return;
             if (pixelSize <= 0) return;
-
+            // Ensure base structure exists FIRST
+            Directory.CreateDirectory(Path.Combine(libraryRoot, "Families"));
+            Directory.CreateDirectory(Path.Combine(libraryRoot, "Thumbs"));
+            Directory.CreateDirectory(Path.Combine(libraryRoot, "Thumbs_Types"));
             string familiesFolder = GetFamiliesFolder(libraryRoot);
 
             string thumbsFolder = Path.Combine(libraryRoot, "Thumbs");
@@ -389,12 +392,31 @@ namespace Family_Library.Services
 
         private static string GetFamiliesFolder(string libraryRoot)
         {
-            string families = Path.Combine(libraryRoot, "Families");
-            if (Directory.Exists(families) && Directory.GetFiles(families, "*.rfa", SearchOption.AllDirectories).Any())
+            var families = Path.Combine(libraryRoot, "Families");
+
+            // Preferred layout
+            if (Directory.Exists(families) &&
+                Directory.GetFiles(families, "*.rfa", SearchOption.AllDirectories).Any())
                 return families;
 
-            return libraryRoot;
+            // Legacy layout: RFAs directly under libraryRoot (but avoid scanning system folders)
+            bool hasRfasInRoot = Directory.GetFiles(libraryRoot, "*.rfa", SearchOption.AllDirectories)
+                .Any(p =>
+                {
+                    // Skip generated/system folders
+                    var rel = p.Substring(libraryRoot.Length).TrimStart(Path.DirectorySeparatorChar, '/');
+                    return !rel.StartsWith("Thumbs" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                        && !rel.StartsWith("Thumbs_Types" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+                });
+
+            if (hasRfasInRoot)
+                return libraryRoot;
+
+            // If nothing exists yet, default to the preferred layout and create it
+            Directory.CreateDirectory(families);
+            return families;
         }
+
 
         private static string GetRelativePath(string basePath, string fullPath)
         {
