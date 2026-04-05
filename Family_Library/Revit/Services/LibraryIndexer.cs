@@ -32,7 +32,9 @@ namespace Family_Library.Services
                 .Where(x => !string.IsNullOrWhiteSpace(x.RelativePath))
                 .ToDictionary(x => x.RelativePath.Replace('\\', '/'), StringComparer.OrdinalIgnoreCase);
 
-            var rfas = Directory.GetFiles(familiesFolder, "*.rfa", SearchOption.AllDirectories);
+            var rfas = Directory.GetFiles(familiesFolder, "*.rfa", SearchOption.AllDirectories)
+                .Where(f => !IsRevitBackup(f))
+                .ToArray();
 
             foreach (var rfa in rfas)
             {
@@ -240,6 +242,16 @@ namespace Family_Library.Services
                 .ToList();
 
             return new ObservableCollection<string>(files);
+        }
+
+        // Revit backup files are named "FamilyName.0001.rfa", "FamilyName.0002.rfa", etc.
+        private static bool IsRevitBackup(string path)
+        {
+            var name = Path.GetFileNameWithoutExtension(path); // e.g. "FamilyName.0001"
+            var dot = name.LastIndexOf('.');
+            if (dot < 0) return false;
+            var suffix = name.Substring(dot + 1);
+            return suffix.Length == 4 && suffix.All(char.IsDigit);
         }
 
     }

@@ -12,6 +12,39 @@
         <ResourceDictionary Source="pack://application:,,,/Family_Library;component/Revit/UI/Themes/DarkTheme.xaml" />
 
     </ResourceDictionary.MergedDictionaries>
+    <!--  Segmented 3-way radio button  -->
+    <Style x:Key="SegmentedRadioButton" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border
+                        x:Name="Bd"
+                        Padding="10,4"
+                        Background="Transparent"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HighlightBrush}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource HighlightBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.80" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!--  Flat icon button  -->
     <Style x:Key="FlatIconButton" TargetType="{x:Type Button}">
         <Setter Property="Background" Value="Transparent" />

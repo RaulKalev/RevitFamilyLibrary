@@ -150,15 +150,19 @@
 
   <ItemGroup>
     <Resource Include="Resources\Revit.ico" />
+    <Resource Include="Resources\Dark - FamilyLibrary.tiff" />
+    <Resource Include="Resources\Light - FamilyLibrary.tiff" />
   </ItemGroup>
 
   <!-- Fody -->
   <ItemGroup>
+    <PackageReference Include="Costura.Fody" Version="5.*" IncludeAssets="build; compile" PrivateAssets="all" />
     <PackageReference Include="PropertyChanged.Fody" Version="3.*" IncludeAssets="build; compile" PrivateAssets="all" />
   </ItemGroup>
   <PropertyGroup>
     <WeaverConfiguration>
       <Weavers>
+        <Costura />
         <PropertyChanged />
       </Weavers>
     </WeaverConfiguration>

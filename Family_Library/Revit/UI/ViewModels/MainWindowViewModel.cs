@@ -114,7 +114,7 @@ namespace Family_Library.UI.ViewModels
             // Subscribe to completion event to refresh UI
             if (ExternalEventBridge.Handler != null)
             {
-                ExternalEventBridge.Handler.OnCompleted += (s, e) =>
+                _onCompletedHandler = (s, e) =>
                 {
                     // Refresh on UI thread
                     System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
@@ -122,10 +122,22 @@ namespace Family_Library.UI.ViewModels
                         Refresh();
                     });
                 };
+                ExternalEventBridge.Handler.OnCompleted += _onCompletedHandler;
             }
 
             // Initial load
             Refresh();
+        }
+
+        private EventHandler _onCompletedHandler;
+
+        public void Dispose()
+        {
+            if (_onCompletedHandler != null && ExternalEventBridge.Handler != null)
+            {
+                ExternalEventBridge.Handler.OnCompleted -= _onCompletedHandler;
+                _onCompletedHandler = null;
+            }
         }
 
         private void LoadUserCategories()
@@ -250,6 +262,9 @@ namespace Family_Library.UI.ViewModels
                 return;
 
             var list = IndexStore.Read(indexPath) ?? new List<LibraryItem>();
+
+            // Filter out Revit backup copies (e.g. Family.0001.rfa) already in the index
+            list = list.Where(item => !IsRevitBackupEntry(item.RelativePath)).ToList();
 
             // Keep full list in memory
             _allItems = list;
@@ -440,19 +455,19 @@ namespace Family_Library.UI.ViewModels
             }
         }
 
-        public bool Is2DMode
+        public string ViewMode
         {
-            get => _is2DMode;
+            get => _viewMode;
             set
             {
-                if (_is2DMode != value)
+                if (_viewMode != value)
                 {
-                    _is2DMode = value;
+                    _viewMode = value ?? "3D";
                     ApplyFilters();
                 }
             }
         }
-        private bool _is2DMode = false; // Default to 3D mode (False)
+        private string _viewMode = "3D";
 
         private void ApplyFilters()
         {
@@ -460,32 +475,17 @@ namespace Family_Library.UI.ViewModels
 
             IEnumerable<LibraryItem> q = _allItems ?? Enumerable.Empty<LibraryItem>();
 
-            // 0. Base Filter: 2D vs 3D (Always active)
-            // Rule:
-            // - If Is2DMode is true (2D Mode) -> Show Item IF (Has "2D" OR Does NOT Have "3D")
-            // - If Is2DMode is false (3D Mode) -> Show Item IF (Has "3D" OR Does NOT Have "2D")
-            // This treats untagged items as existing in BOTH views.
-            
-            bool is2D = Is2DMode;
-            q = q.Where(x => 
+            // 0. Base Filter: 3D / 2D / Tag
+            q = q.Where(x =>
             {
-                bool has2D = x.UserCategories != null && x.UserCategories.Contains("2D", StringComparer.OrdinalIgnoreCase);
-                bool has3D = x.UserCategories != null && x.UserCategories.Contains("3D", StringComparer.OrdinalIgnoreCase);
+                bool has2D  = x.UserCategories != null && x.UserCategories.Contains("2D",  StringComparer.OrdinalIgnoreCase);
+                bool hasTag = x.UserCategories != null && x.UserCategories.Contains("Tag", StringComparer.OrdinalIgnoreCase);
 
-                if (is2D)
+                switch (_viewMode)
                 {
-                    // In 2D mode, we want to see 2D items, AND items that are NOT explicitly 3D only.
-                    // If something is tagged 3D but NOT 2D, hide it.
-                    // If something is tagged 2D, show it.
-                    // If something is tagged NEITHER, show it.
-                    // So: Show if (Has2D) || (!Has3D)
-                    return has2D || !has3D;
-                }
-                else
-                {
-                    // In 3D mode (Default), we want to see 3D items, AND items that are NOT explicitly 2D only.
-                    // Show if (Has3D) || (!Has2D)
-                    return has3D || !has2D;
+                    case "2D":  return has2D;
+                    case "Tag": return hasTag;
+                    default:    return !has2D && !hasTag; // "3D": exclude anything labelled 2D or Tag
                 }
             });
 
@@ -625,31 +625,60 @@ namespace Family_Library.UI.ViewModels
             Directory.CreateDirectory(families);
             return families;
         }
+
+        private static bool IsRevitBackupEntry(string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath)) return false;
+            var nameWithoutExt = Path.GetFileNameWithoutExtension(relativePath);
+            var lastDot = nameWithoutExt.LastIndexOf('.');
+            if (lastDot < 0) return false;
+            var suffix = nameWithoutExt.Substring(lastDot + 1);
+            return suffix.Length == 4 && suffix.All(char.IsDigit);
+        }
         
         public ICommand ToggleCategoryCommand => new ricaun.Revit.Mvvm.RelayCommand<object>(ToggleCategory);
         private void ToggleCategory(object param)
         {
             if (param is object[] arr && arr.Length >= 2)
             {
-                var item = arr[0] as LibraryItem;
+                var clickedItem = arr[0] as LibraryItem;
                 var cat = arr[1] as string;
-                if (item != null && !string.IsNullOrWhiteSpace(cat))
+                if (clickedItem == null || string.IsNullOrWhiteSpace(cat))
+                    return;
+
+                // If the right-clicked item is part of a multi-selection, apply to all selected items.
+                // Otherwise apply only to the clicked item.
+                var targets = (SelectedItems != null &&
+                               SelectedItems.Count > 1 &&
+                               SelectedItems.Contains(clickedItem))
+                    ? SelectedItems
+                    : new List<LibraryItem> { clickedItem };
+
+                // Determine intent from the clicked item: if it already has the tag, remove from all; otherwise add to all.
+                bool clickedHasTag = clickedItem.UserCategories != null &&
+                                     clickedItem.UserCategories.Any(x => string.Equals(x, cat, StringComparison.OrdinalIgnoreCase));
+
+                foreach (var item in targets)
                 {
-                   if (item.UserCategories == null) item.UserCategories = new ObservableCollection<string>();
-                   
-                   var existing = item.UserCategories.FirstOrDefault(x => string.Equals(x, cat, StringComparison.OrdinalIgnoreCase));
-                   if (existing != null)
-                   {
-                       item.UserCategories.Remove(existing);
-                   }
-                   else
-                   {
-                       item.UserCategories.Add(cat);
-                   }
-                   
-                   SaveIndex();
-                   ApplyFilters();
+                    if (item.UserCategories == null)
+                        item.UserCategories = new ObservableCollection<string>();
+
+                    var existing = item.UserCategories.FirstOrDefault(x => string.Equals(x, cat, StringComparison.OrdinalIgnoreCase));
+
+                    if (clickedHasTag)
+                    {
+                        if (existing != null)
+                            item.UserCategories.Remove(existing);
+                    }
+                    else
+                    {
+                        if (existing == null)
+                            item.UserCategories.Add(cat);
+                    }
                 }
+
+                SaveIndex();
+                ApplyFilters();
             }
         }
     }

@@ -1,6 +1,7 @@
 ﻿using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Family_Library.UI.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -26,18 +27,28 @@ namespace Family_Library.Services
             Directory.CreateDirectory(thumbsFolder);
             Directory.CreateDirectory(typeThumbsFolder);
 
-            string[] rfas = Directory.GetFiles(familiesFolder, "*.rfa", SearchOption.AllDirectories);
+            string[] rfas = Directory.GetFiles(familiesFolder, "*.rfa", SearchOption.AllDirectories)
+                .Where(f => !IsRevitBackup(f))
+                .ToArray();
             if (rfas.Length == 0)
             {
                 TaskDialog.Show("Family Library", $"No .rfa files found in:\n{familiesFolder}");
                 return;
             }
 
+            // Load existing index for timestamp-based skip (same approach as LibraryIndexer)
+            var indexPath = Path.Combine(libraryRoot, "index.json");
+            var existingList = File.Exists(indexPath) ? IndexStore.Read(indexPath) : new List<LibraryItem>();
+            var indexMap = existingList
+                .Where(x => !string.IsNullOrWhiteSpace(x.RelativePath))
+                .ToDictionary(x => x.RelativePath.Replace('\\', '/'), StringComparer.OrdinalIgnoreCase);
+
             bool errorShown = false;
 
             foreach (string rfa in rfas)
             {
                 string rel = GetRelativePath(familiesFolder, rfa);
+                var relNormalized = rel.Replace('\\', '/');
 
                 // Main family thumb (one per .rfa)
                 string familyOutPng = Path.Combine(thumbsFolder, Path.ChangeExtension(rel, ".png"));
@@ -47,6 +58,15 @@ namespace Family_Library.Services
                 string typeFolder = Path.Combine(typeThumbsFolder, Path.GetDirectoryName(rel) ?? "");
                 string familyNameNoExt = Path.GetFileNameWithoutExtension(rel);
                 string familyTypeOutDir = Path.Combine(typeFolder, familyNameNoExt);
+
+                // Skip if family is unchanged and main thumbnail already exists
+                var lastWriteUtc = File.GetLastWriteTimeUtc(rfa);
+                if (indexMap.TryGetValue(relNormalized, out var existingItem) &&
+                    existingItem.LastWriteTimeUtc >= lastWriteUtc &&
+                    File.Exists(familyOutPng))
+                {
+                    continue;
+                }
 
                 // Cleanup orphans: delete existing PNGs from previous runs
                 if (Directory.Exists(familyTypeOutDir))
@@ -461,6 +481,16 @@ namespace Family_Library.Services
             var rel = baseUri.MakeRelativeUri(fullUri).ToString();
             rel = Uri.UnescapeDataString(rel);
             return rel.Replace('/', Path.DirectorySeparatorChar);
+        }
+
+        // Revit backup files are named "FamilyName.0001.rfa", "FamilyName.0002.rfa", etc.
+        private static bool IsRevitBackup(string path)
+        {
+            var name = Path.GetFileNameWithoutExtension(path); // e.g. "FamilyName.0001"
+            var dot = name.LastIndexOf('.');
+            if (dot < 0) return false;
+            var suffix = name.Substring(dot + 1);
+            return suffix.Length == 4 && suffix.All(char.IsDigit);
         }
     }
 }

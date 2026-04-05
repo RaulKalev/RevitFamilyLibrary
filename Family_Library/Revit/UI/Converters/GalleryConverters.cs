@@ -111,4 +111,19 @@ namespace Family_Library.UI.Converters
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
             => throw new NotSupportedException();
     }
+
+    public class EqualityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return string.Equals(value?.ToString(), parameter?.ToString(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is bool b && b)
+                return parameter?.ToString();
+            return Binding.DoNothing;
+        }
+    }
 }

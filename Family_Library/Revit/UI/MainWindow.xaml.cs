@@ -39,6 +39,7 @@ namespace Family_Library.UI
         {
             var vm = DataContext as MainWindowViewModel;
             vm?.SaveIndex();
+            vm?.Dispose();
         }
         private void LibraryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {

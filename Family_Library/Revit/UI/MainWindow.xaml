@@ -42,6 +42,7 @@
             <conv:StringListToTextConverter x:Key="TypeListConverter" />
             <conv:TupleConverter x:Key="TupleConverter" />
             <conv:IsCategoryAssignedConverter x:Key="IsCategoryAssignedConverter" />
+            <conv:EqualityConverter x:Key="EqualityConverter" />
         </ResourceDictionary>
     </Window.Resources>
 
@@ -287,43 +288,28 @@
                                             </StackPanel>
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                                                 
-                                                <!-- 3D/2D Toggle (Restyled) -->
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,15,0">
-                                                    <TextBlock Text="3D" VerticalAlignment="Center" Foreground="{DynamicResource ForegroundBrush}" FontWeight="Bold" Margin="0,0,4,0" />
-                                                    <ToggleButton
-                                                        x:Name="ModeFilterToggle"
-                                                        Width="30"
-                                                        Height="30"
-                                                        Background="Transparent"
-                                                        BorderBrush="Transparent"
-                                                        IsChecked="{Binding Is2DMode}"
-                                                        ToolTip="Lülita 3D / 2D vahel">
-                                                        <ToggleButton.Template>
-                                                            <ControlTemplate TargetType="{x:Type ToggleButton}">
-                                                                <Grid Background="Transparent">
-                                                                    <materialDesign:PackIcon
-                                                                        x:Name="ToggleIcon"
-                                                                        Width="30"
-                                                                        Height="30"
-                                                                        HorizontalAlignment="Center"
-                                                                        VerticalAlignment="Center"
-                                                                        Foreground="{DynamicResource IconBrush}"
-                                                                        Kind="ToggleSwitchOffOutline" />
-                                                                </Grid>
-                                                                <ControlTemplate.Triggers>
-                                                                    <!-- IsChecked = True => 2D Mode => Switch Right -->
-                                                                    <Trigger Property="IsChecked" Value="True">
-                                                                        <Setter TargetName="ToggleIcon" Property="Kind" Value="ToggleSwitch" />
-                                                                    </Trigger>
-                                                                    <!-- IsChecked = False => 3D Mode => Switch Left -->
-                                                                    <Trigger Property="IsChecked" Value="False">
-                                                                        <Setter TargetName="ToggleIcon" Property="Kind" Value="ToggleSwitchOffOutline" />
-                                                                    </Trigger>
-                                                                </ControlTemplate.Triggers>
-                                                            </ControlTemplate>
-                                                        </ToggleButton.Template>
-                                                    </ToggleButton>
-                                                    <TextBlock Text="2D" VerticalAlignment="Center" Foreground="{DynamicResource ForegroundBrush}" FontWeight="Bold" Margin="4,0,0,0" />
+                                                <!-- 3D / 2D / Tag segmented toggle -->
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                                                    <RadioButton
+                                                        Content="3D"
+                                                        GroupName="ViewModeGroup"
+                                                        IsChecked="{Binding ViewMode, Converter={StaticResource EqualityConverter}, ConverterParameter=3D}"
+                                                        Style="{StaticResource SegmentedRadioButton}"
+                                                        ToolTip="Näita 3D komponente" />
+                                                    <RadioButton
+                                                        Content="2D"
+                                                        Margin="4,0,0,0"
+                                                        GroupName="ViewModeGroup"
+                                                        IsChecked="{Binding ViewMode, Converter={StaticResource EqualityConverter}, ConverterParameter=2D}"
+                                                        Style="{StaticResource SegmentedRadioButton}"
+                                                        ToolTip="Näita 2D komponente" />
+                                                    <RadioButton
+                                                        Content="Tag"
+                                                        Margin="4,0,0,0"
+                                                        GroupName="ViewModeGroup"
+                                                        IsChecked="{Binding ViewMode, Converter={StaticResource EqualityConverter}, ConverterParameter=Tag}"
+                                                        Style="{StaticResource SegmentedRadioButton}"
+                                                        ToolTip="Näita ainult Tag komponente" />
                                                 </StackPanel>
 
                                                 <!--  Search bar  -->
