@@ -75,6 +75,11 @@
     </Otherwise>
   </Choose>
 
+  <PropertyGroup>
+    <RevitApiPackageVersion>$(RevitVersion).*</RevitApiPackageVersion>
+    <RevitApiPackageVersion Condition="'$(RevitVersion)' == '2026'">2026.0.*</RevitApiPackageVersion>
+  </PropertyGroup>
+
   <!-- Net Core -->
   <PropertyGroup Condition="!$(TargetFramework.StartsWith('net4'))">
     <EnableDynamicLoading>true</EnableDynamicLoading>
@@ -169,7 +174,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Revit_All_Main_Versions_API_x64" Version="$(RevitVersion).*" IncludeAssets="build; compile" PrivateAssets="All" />
+    <!-- 2026.5+ of this package is compiled against .NET 10; Revit 2026 runs on .NET 8, so stay on 2026.0.x -->
+    <PackageReference Include="Revit_All_Main_Versions_API_x64" Version="$(RevitApiPackageVersion)" IncludeAssets="build; compile" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>

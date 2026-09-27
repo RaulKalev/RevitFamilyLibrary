@@ -1,276 +1,325 @@
-﻿using Autodesk.Revit.UI;
+using Autodesk.Revit.UI;
 using Family_Library.Revit.ExternalEvents;
 using Family_Library.UI.Models;
 using Family_Library.UI.ViewModels;
+using MaterialDesignThemes.Wpf;
+using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
-using System;
-using System.Collections.Generic;
 using System.Windows.Input;
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Threading;
+using TextBox = System.Windows.Controls.TextBox;
+using ComboBox = System.Windows.Controls.ComboBox;
+using ContextMenu = System.Windows.Controls.ContextMenu;
 
 namespace Family_Library.UI
 {
     public partial class MainWindow : Window
     {
-        private bool _hooksInitialized = false;
+        /// <summary>Below this width the sidebar collapses to icons.</summary>
+        private const double CompactWidth = 900;
 
-        private readonly WindowResizer _windowResizer;
+        public static readonly DependencyProperty IsCompactProperty = DependencyProperty.Register(
+            nameof(IsCompact), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
 
-        public bool PlaceAfterLoading { get; set; } = false;
+        private readonly ThemeManager _theme;
+        private readonly MainWindowViewModel _vm;
 
         public MainWindow(UIApplication uiapp)
         {
             InitializeComponent();
-            Closing += MainWindow_Closing;
-            InitCategoryChangeHooks();
 
-            _windowResizer = new WindowResizer(this);
-            MouseMove += Window_MouseMove;
-            MouseLeftButtonUp += Window_MouseLeftButtonUp;
+            _theme = new ThemeManager(this, ThemeManager.RevitIsDark());
+            _theme.ApplyTheme();
+            _theme.ThemeChanged += (s, e) => UpdateThemeButton();
+            UpdateThemeButton();
+            RestorePlacement();
 
             ExternalEventBridge.EnsureCreated();
-            DataContext = new MainWindowViewModel(uiapp);
+            _vm = new MainWindowViewModel(uiapp);
+            _vm.CurrentPage = _theme.Preferences.LastPage;
+            DataContext = _vm;
+
+            Closing += MainWindow_Closing;
+            Closed += MainWindow_Closed;
+            SourceInitialized += MainWindow_SourceInitialized;
+            SizeChanged += (s, e) => UpdateLayoutMode();
+            StateChanged += MainWindow_StateChanged;
+            PreviewKeyDown += OnPreviewKeyDown;
         }
-        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+
+        // ------------------------------------------------------------------ Escape and minimize (as in CAD Manager)
+        //
+        // Revit treats Escape in a modeless window as "cancel command" and minimizes / deactivates the window.
+        // Escape is consumed before Revit sees it (thread pre-process + window hook), and minimize requests that
+        // did not come from our own minimize button or the placement flow are refused.
+
+        private const int WmKeyDown = 0x0100;
+        private const int WmKeyUp = 0x0101;
+        private const int WmSysKeyDown = 0x0104;
+        private const int WmSysKeyUp = 0x0105;
+        private const int WmSysCommand = 0x0112;
+        private const int EscapeVirtualKey = 0x1B;
+        private const int ScMinimize = 0xF020;
+
+        private HwndSource _windowSource;
+        private bool _allowExplicitMinimize;
+
+        private void MainWindow_SourceInitialized(object sender, EventArgs e)
         {
-            var vm = DataContext as MainWindowViewModel;
-            vm?.SaveIndex();
-            vm?.Dispose();
+            _windowSource = PresentationSource.FromVisual(this) as HwndSource;
+            _windowSource?.AddHook(WindowHwndHook);
+            ComponentDispatcher.ThreadPreprocessMessage += ComponentDispatcher_ThreadPreprocessMessage;
         }
-        private void LibraryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+
+        private void MainWindow_Closed(object sender, EventArgs e)
         {
-            var vm = DataContext as MainWindowViewModel;
-            if (vm == null) return;
-
-            var lv = sender as ListView;
-            if (lv == null) return;
-
-            vm.SelectedItems = lv.SelectedItems.Cast<LibraryItem>().ToList();
+            _windowSource?.RemoveHook(WindowHwndHook);
+            _windowSource = null;
+            ComponentDispatcher.ThreadPreprocessMessage -= ComponentDispatcher_ThreadPreprocessMessage;
         }
-        private void UserCategoryCombo_LostFocus(object sender, System.Windows.RoutedEventArgs e)
+
+        private void ComponentDispatcher_ThreadPreprocessMessage(ref MSG message, ref bool handled)
         {
-            var vm = DataContext as MainWindowViewModel;
-            if (vm == null) return;
-
-            var cb = sender as System.Windows.Controls.ComboBox;
-            if (cb == null) return;
-
-            var typed = (cb.Text ?? "").Trim();
-            if (!string.IsNullOrWhiteSpace(typed))
-            {
-                // add to global list if missing
-                if (!vm.UserCategories.Any(x => string.Equals(x, typed, StringComparison.OrdinalIgnoreCase)))
-                {
-                    vm.UserCategories.Add(typed);
-                    // persist list
-                    var s = Services.SettingsStore.Load();
-                    if (s.UserCategories == null) s.UserCategories = new System.Collections.Generic.List<string>();
-                    s.UserCategories = vm.UserCategories.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
-                    Services.SettingsStore.Save(s);
-                }
-            }
-
-            // persist per-family selection back to index.json
-            vm.SaveIndex();
-        }
-        private void UserCategoriesText_LostFocus(object sender, RoutedEventArgs e)
-        {
-            var vm = DataContext as MainWindowViewModel;
-            if (vm == null) return;
-
-            var tb = sender as System.Windows.Controls.TextBox;
-            if (tb == null) return;
-
-            // After user edits a row, update global category list from ALL items
-            var allCats = vm.Items
-                .SelectMany(x => x.UserCategories ?? new ObservableCollection<string>())
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(System.StringComparer.OrdinalIgnoreCase)
-                .OrderBy(x => x)
-                .ToList();
-
-            // Ensure "All" stays at top
-            vm.UserCategories.Clear();
-            vm.UserCategories.Add("All");
-            foreach (var c in allCats)
-                vm.UserCategories.Add(c);
-
-            // Persist index (IMPORTANT: save full list, not filtered list)
-            vm.SaveIndex();
-        }
-        private void TagInput_KeyDown(object sender, KeyEventArgs e)
-        {
-            // Add on Enter or Comma
-            if (e.Key != Key.Enter && e.Key != Key.OemComma)
+            if (handled || !IsActive || message.wParam.ToInt64() != EscapeVirtualKey)
                 return;
 
-            var tb = sender as System.Windows.Controls.TextBox;
-            if (tb == null) return;
-
-            var item = tb.DataContext as LibraryItem;
-            if (item == null) return;
-
-            var raw = (tb.Text ?? "").Trim();
-            if (string.IsNullOrWhiteSpace(raw))
+            var isKeyMessage = message.message == WmKeyDown || message.message == WmKeyUp ||
+                               message.message == WmSysKeyDown || message.message == WmSysKeyUp;
+            if (!isKeyMessage)
                 return;
 
-            // Allow pasting multiple tags: "A, B; C"
-            var tags = raw
-                .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => (x ?? "").Trim())
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            if (message.message == WmKeyDown || message.message == WmSysKeyDown)
+                HandleEscapeKey();
 
-            if (tags.Count == 0) return;
+            // Consume both key-down and key-up so Revit never sees Escape.
+            handled = true;
+        }
 
-            if (item.UserCategories == null)
-                item.UserCategories = new ObservableCollection<string>();
-
-            foreach (var tag in tags)
+        private IntPtr WindowHwndHook(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (message == WmSysCommand && (wParam.ToInt64() & 0xFFF0) == ScMinimize && !_allowExplicitMinimize)
             {
-                if (!item.UserCategories.Any(x => string.Equals(x, tag, StringComparison.OrdinalIgnoreCase)))
-                    item.UserCategories.Add(tag);
+                handled = true;
+                return IntPtr.Zero;
             }
 
-            tb.Text = "";
-            e.Handled = true;
+            if ((message == WmKeyDown || message == WmSysKeyDown) && wParam.ToInt64() == EscapeVirtualKey)
+            {
+                HandleEscapeKey();
+                handled = true;
+            }
 
-            var vm = DataContext as MainWindowViewModel;
-            if (vm == null) return;
-
-            // Add new tags to global category list (settings list)
-            foreach (var tag in tags)
-                vm.EnsureUserCategoryExists(tag);
-
-            // Save the index safely (must save FULL list, not filtered Items)
-            vm.SaveIndex();
-        }
-        private void AddCategory_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
-        {
-            if (e.Key != System.Windows.Input.Key.Enter) return;
-            var vm = DataContext as MainWindowViewModel;
-            vm?.AddUserCategoryCommand?.Execute(null);
-            e.Handled = true;
-        }
-        private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.LeftButton == MouseButtonState.Pressed)
-                DragMove();
+            return IntPtr.Zero;
         }
 
-        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Esc steps back one level: close an open drop-down or menu, else clear the search while typing in it,
+        /// else clear the selection. It never minimizes or closes the window.
+        /// </summary>
+        private void HandleEscapeKey()
         {
+            var focused = Keyboard.FocusedElement as DependencyObject;
+
+            var combo = FindAncestor<ComboBox>(focused);
+            if (combo != null && combo.IsDropDownOpen)
+            {
+                combo.IsDropDownOpen = false;
+                return;
+            }
+
+            var menu = FindAncestor<ContextMenu>(focused);
+            if (menu != null && menu.IsOpen)
+            {
+                menu.IsOpen = false;
+                return;
+            }
+
+            if (!_vm.IsLibraryPage)
+                return;
+
+            if (SearchTextBox.IsKeyboardFocusWithin && !string.IsNullOrEmpty(SearchTextBox.Text))
+                SearchTextBox.Text = string.Empty;
+            else
+                LibraryList.UnselectAll();
+        }
+
+        /// <summary>Minimizes on purpose (placement after loading); other minimize requests are refused.</summary>
+        public void MinimizeForPlacement()
+        {
+            _allowExplicitMinimize = true;
+            Topmost = false;
             WindowState = WindowState.Minimized;
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        private void MainWindow_StateChanged(object sender, EventArgs e)
         {
-            Close();
+            if (WindowState == WindowState.Minimized && !_allowExplicitMinimize)
+            {
+                // Minimized by something else (Revit reacting to a key): bring it straight back.
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (WindowState == WindowState.Minimized)
+                        SystemCommands.RestoreWindow(this);
+                    Activate();
+                }), DispatcherPriority.Send);
+                return;
+            }
+
+            if (WindowState != WindowState.Minimized)
+                _allowExplicitMinimize = false;
+
+            UpdateMaximizedState();
         }
+
+        public bool IsCompact
+        {
+            get => (bool)GetValue(IsCompactProperty);
+            private set => SetValue(IsCompactProperty, value);
+        }
+
+        // ------------------------------------------------------------------ appearance and window
+
+        private void UpdateThemeButton()
+        {
+            // Same icon pair as the other RK Tools plugins (Sentinel, CableCatalogue).
+            ThemeIcon.Kind = IconKind(_theme.IsDarkMode ? "WeatherNight" : "WhiteBalanceSunny");
+            ThemeText.Text = _theme.IsDarkMode ? "Tume välimus" : "Hele välimus";
+        }
+
+        private void ToggleTheme_Click(object sender, RoutedEventArgs e) => _theme.ToggleTheme();
+
+        private void RestorePlacement()
+        {
+            var p = _theme.Preferences;
+            Width = Math.Max(MinWidth, p.WindowWidth);
+            Height = Math.Max(MinHeight, p.WindowHeight);
+            if (double.IsNaN(p.WindowLeft) || double.IsNaN(p.WindowTop))
+            {
+                WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                return;
+            }
+            Left = Math.Max(SystemParameters.VirtualScreenLeft, Math.Min(SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth - Width, p.WindowLeft));
+            Top = Math.Max(SystemParameters.VirtualScreenTop, Math.Min(SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - Height, p.WindowTop));
+        }
+
+        private void UpdateLayoutMode()
+        {
+            IsCompact = ActualWidth < CompactWidth;
+            SidebarColumn.Width = new GridLength(IsCompact ? 60 : 200);
+            PageSubtitleText.Visibility = ActualWidth < 1000 ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        private void UpdateMaximizedState()
+        {
+            // A maximized WindowChrome window extends past the work area by the resize frame; pad the content back in.
+            var maximized = WindowState == WindowState.Maximized;
+            var frame = SystemParameters.WindowResizeBorderThickness;
+            RootGrid.Margin = maximized ? new Thickness(frame.Left + 4, frame.Top + 4, frame.Right + 4, frame.Bottom + 4) : new Thickness(0);
+            MaximizeIcon.Kind = IconKind(maximized ? "WindowRestore" : "WindowMaximize");
+            MaximizeButton.ToolTip = maximized ? "Taasta" : "Maksimeeri";
+            System.Windows.Automation.AutomationProperties.SetName(MaximizeButton, maximized ? "Taasta" : "Maksimeeri");
+        }
+
+        private void Minimize_Click(object sender, RoutedEventArgs e)
+        {
+            _allowExplicitMinimize = true;
+            SystemCommands.MinimizeWindow(this);
+        }
+
+        private void Maximize_Click(object sender, RoutedEventArgs e)
+        {
+            if (WindowState == WindowState.Maximized) SystemCommands.RestoreWindow(this);
+            else SystemCommands.MaximizeWindow(this);
+        }
+
+        private void Close_Click(object sender, RoutedEventArgs e) => SystemCommands.CloseWindow(this);
+
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            _theme.CaptureWindowPlacement();
+            _theme.Preferences.LastPage = _vm.CurrentPage;
+            _theme.Save();
+
+            _vm.SaveIndex();
+            _vm.Dispose();
+        }
+
+        // ------------------------------------------------------------------ keyboard
+
+        private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            var mods = Keyboard.Modifiers;
+
+            if (mods == ModifierKeys.Control && (e.Key == Key.D1 || e.Key == Key.NumPad1))
+            {
+                _vm.CurrentPage = "Library";
+                e.Handled = true;
+            }
+            else if (mods == ModifierKeys.Control && (e.Key == Key.D2 || e.Key == Key.NumPad2))
+            {
+                _vm.CurrentPage = "Settings";
+                e.Handled = true;
+            }
+            else if (mods == ModifierKeys.Control && e.Key == Key.F)
+            {
+                _vm.CurrentPage = "Library";
+                SearchTextBox.Focus();
+                SearchTextBox.SelectAll();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                // Normally consumed earlier by the pre-process hook; this is the fallback.
+                HandleEscapeKey();
+                e.Handled = true;
+            }
+        }
+
+        // ------------------------------------------------------------------ library list
+
+        private void LibraryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _vm.SetSelection(LibraryList.SelectedItems.Cast<LibraryItem>().ToList());
+        }
+
+        private void LibraryList_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter || !_vm.HasSelection) return;
+            _vm.LoadSelectedCommand.Execute(null);
+            e.Handled = true;
+        }
+
+        /// <summary>Double-click on a row loads that family (the selection is already the clicked row).</summary>
+        private void LibraryList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton != MouseButton.Left) return;
+            var source = e.OriginalSource as DependencyObject;
+            // Ignore double-clicks on the thumbnail arrows and on the scrollbar.
+            if (FindAncestor<Button>(source) != null || FindAncestor<ListViewItem>(source) == null) return;
+            if (!_vm.HasSelection) return;
+            _vm.LoadSelectedCommand.Execute(null);
+            e.Handled = true;
+        }
+
+        private void ClearSelection_Click(object sender, RoutedEventArgs e) => LibraryList.UnselectAll();
 
         private void ClearSearchButton_Click(object sender, RoutedEventArgs e)
         {
-            if (SearchTextBox == null) return;
             SearchTextBox.Text = string.Empty;
             SearchTextBox.Focus();
         }
-        private void LeftEdge_MouseEnter(object sender, MouseEventArgs e) => Cursor = Cursors.SizeWE;
-        private void RightEdge_MouseEnter(object sender, MouseEventArgs e) => Cursor = Cursors.SizeWE;
-        private void BottomEdge_MouseEnter(object sender, MouseEventArgs e) => Cursor = Cursors.SizeNS;
-        private void BottomLeftCorner_MouseEnter(object sender, MouseEventArgs e) => Cursor = Cursors.SizeNESW;
-        private void BottomRightCorner_MouseEnter(object sender, MouseEventArgs e) => Cursor = Cursors.SizeNWSE;
 
-        private void Edge_MouseLeave(object sender, MouseEventArgs e) => Cursor = Cursors.Arrow;
-
-        private void Window_MouseMove(object sender, MouseEventArgs e) => _windowResizer.ResizeWindow(e);
-        private void Window_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) => _windowResizer.StopResizing();
-
-        private void LeftEdge_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _windowResizer.StartResizing(e, ResizeDirection.Left);
-        private void RightEdge_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _windowResizer.StartResizing(e, ResizeDirection.Right);
-        private void BottomEdge_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _windowResizer.StartResizing(e, ResizeDirection.Bottom);
-        private void BottomLeftCorner_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _windowResizer.StartResizing(e, ResizeDirection.BottomLeft);
-        private void BottomRightCorner_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _windowResizer.StartResizing(e, ResizeDirection.BottomRight);
-
-        private void UserCategories_ItemSelectionChanged(object sender, RoutedEventArgs e)
-        {
-            var vm = DataContext as MainWindowViewModel;
-            if (vm == null) return;
-
-            // Persist per-family selection back to index.json (full list, not filtered)
-            vm.SaveIndex();
-
-            // If you are currently filtering by category, a change can affect visibility
-            // Easiest: re-apply filters by re-setting SearchText/SelectedFilterCategory indirectly,
-            // or add a public vm.RefreshFilteredView() method that calls ApplyFilters().
-            // Minimal “no new public methods” hack:
-            vm.SearchText = vm.SearchText; // triggers ApplyFilters() via setter
-        }
-        private void InitCategoryChangeHooks()
-        {
-            if (_hooksInitialized) return;
-            _hooksInitialized = true;
-
-            var vm = DataContext as MainWindowViewModel;
-            if (vm == null) return;
-
-            // Hook existing items
-            foreach (var it in vm.Items)
-                HookItem(it);
-
-            // Hook new items if list changes
-            vm.Items.CollectionChanged += (s, e) =>
-            {
-                if (e.NewItems != null)
-                    foreach (LibraryItem it in e.NewItems)
-                        HookItem(it);
-
-                if (e.OldItems != null)
-                    foreach (LibraryItem it in e.OldItems)
-                        UnhookItem(it);
-            };
-        }
-
-        private void HookItem(LibraryItem item)
-        {
-            if (item == null) return;
-
-            // Ensure not null
-            if (item.UserCategories == null)
-                item.UserCategories = new ObservableCollection<string>();
-
-            // Avoid double-hook
-            item.UserCategories.CollectionChanged -= ItemUserCategories_CollectionChanged;
-            item.UserCategories.CollectionChanged += ItemUserCategories_CollectionChanged;
-        }
-
-        private void UnhookItem(LibraryItem item)
-        {
-            if (item?.UserCategories == null) return;
-            item.UserCategories.CollectionChanged -= ItemUserCategories_CollectionChanged;
-        }
-
-        private void ItemUserCategories_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
-        {
-            var vm = DataContext as MainWindowViewModel;
-            if (vm == null) return;
-
-            // 1) Save immediately
-            vm.SaveIndex();
-
-            // 2) Re-apply filters immediately (your hack works, but let’s do it safely)
-            vm.SearchText = vm.SearchText;
-        }
         private void ListView_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
             var sv = FindVisualChild<ScrollViewer>(sender as DependencyObject);
             if (sv == null) return;
 
-            // Smaller step = smoother. Tune this number.
+            // Smaller step = smoother.
             const double factor = 0.35;
 
             var newOffset = sv.VerticalOffset - (e.Delta * factor);
@@ -281,14 +330,39 @@ namespace Family_Library.UI
             e.Handled = true;
         }
 
+        private void PrevThumb_Click(object sender, RoutedEventArgs e) => ((sender as Button)?.DataContext as LibraryItem)?.PrevThumbnail();
+
+        private void NextThumb_Click(object sender, RoutedEventArgs e) => ((sender as Button)?.DataContext as LibraryItem)?.NextThumbnail();
+
+        // ------------------------------------------------------------------ settings
+
+        private void AddCategory_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter) return;
+            // Push the typed text to the view model first (binding updates on PropertyChanged, but be explicit).
+            (sender as TextBox)?.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+            _vm.AddUserCategoryCommand.Execute(null);
+            e.Handled = true;
+        }
+
+        // ------------------------------------------------------------------ helpers
+
+        /// <summary>
+        /// Resolves an icon by name at runtime. Never use PackIconKind.X constants in code: the enum's numbers differ
+        /// between MaterialDesign versions, and inside Revit another plugin may have loaded a different version first
+        /// (Sentinel and CableCatalogue use 5.2.0), which turns e.g. WeatherNight into a rain cloud. XAML is parsed by
+        /// name, so it is unaffected.
+        /// </summary>
+        private static PackIconKind IconKind(string name) => (PackIconKind)Enum.Parse(typeof(PackIconKind), name);
+
         private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {
             if (parent == null) return null;
 
-            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+            int count = VisualTreeHelper.GetChildrenCount(parent);
             for (int i = 0; i < count; i++)
             {
-                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                var child = VisualTreeHelper.GetChild(parent, i);
                 if (child is T typed) return typed;
 
                 var result = FindVisualChild<T>(child);
@@ -296,19 +370,12 @@ namespace Family_Library.UI
             }
             return null;
         }
-        private void PrevThumb_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var item = btn?.DataContext as LibraryItem;
-            item?.PrevThumbnail();
-        }
 
-        private void NextThumb_Click(object sender, RoutedEventArgs e)
+        private static T FindAncestor<T>(DependencyObject d) where T : DependencyObject
         {
-            var btn = sender as Button;
-            var item = btn?.DataContext as LibraryItem;
-            item?.NextThumbnail();
+            while (d != null && !(d is T))
+                d = d is Visual || d is System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d);
+            return d as T;
         }
-
     }
 }

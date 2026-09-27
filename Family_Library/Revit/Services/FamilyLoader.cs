@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Family_Library.UI.Dialogs;
 
 namespace Family_Library.Services
 {
@@ -55,6 +56,8 @@ namespace Family_Library.Services
             int loaded = 0;
             int skipped = 0;
             int failed = 0;
+            int upToDate = 0;
+            string firstError = null;
 
             Family loadedFamilyForPlacement = null;
 
@@ -92,9 +95,9 @@ namespace Family_Library.Services
                         {
                             if (conflictAll == ConflictChoice.Ask)
                             {
-                                var result = ShowConflictDialog(familyName, p);
+                                var result = ShowConflictDialog(familyName, p, familyPaths.Length > 1);
 
-                                if (result == TaskDialogResult.Cancel)
+                                if (result == ConflictResult.Cancel)
                                 {
                                     t.RollBack();
                                     return;
@@ -102,20 +105,16 @@ namespace Family_Library.Services
 
                                 switch (result)
                                 {
-                                    case TaskDialogResult.CommandLink1:
+                                    case ConflictResult.Overwrite:
                                         overwriteThis = true;
                                         break;
 
-                                    case TaskDialogResult.CommandLink2:
-                                        overwriteThis = false;
-                                        break;
-
-                                    case TaskDialogResult.CommandLink3:
+                                    case ConflictResult.OverwriteAll:
                                         conflictAll = ConflictChoice.Overwrite;
                                         overwriteThis = true;
                                         break;
 
-                                    case TaskDialogResult.CommandLink4:
+                                    case ConflictResult.SkipAll:
                                         conflictAll = ConflictChoice.Skip;
                                         overwriteThis = false;
                                         break;
@@ -149,22 +148,36 @@ namespace Family_Library.Services
                             ok = doc.LoadFamily(p, out fam);
                         }
 
+                        // LoadFamily also returns false (and no family) when the project already has this exact
+                        // version: nothing to reload. That is not a failure – use the family in the project.
+                        if (fam == null && exists)
+                            fam = FindFamily(doc, familyName);
+
                         if (ok)
                         {
                             loaded++;
-                            existingFamilies.Add(familyName);
-
-                            if (loadedFamilyForPlacement == null)
-                                loadedFamilyForPlacement = fam;
+                        }
+                        else if (exists && fam != null)
+                        {
+                            upToDate++;
                         }
                         else
                         {
                             failed++;
+                            if (firstError == null)
+                                firstError = familyName + ": Revit ei laadinud perekonda.";
+                            continue;
                         }
+
+                        existingFamilies.Add(familyName);
+                        if (loadedFamilyForPlacement == null)
+                            loadedFamilyForPlacement = fam ?? FindFamily(doc, familyName);
                     }
-                    catch
+                    catch (Exception ex)
                     {
                         failed++;
+                        if (firstError == null)
+                            firstError = Path.GetFileNameWithoutExtension(p) + ": " + ex.Message;
                     }
                 }
 
@@ -194,56 +207,76 @@ namespace Family_Library.Services
                         }
                     }
 
-                    TaskDialog.Show("Perekonnateek",
-                        "Perekond laaditi, kuid paigutatavat tüüpi ei leitud.");
+                    LibraryDialogs.Error("Paigutamine ebaõnnestus",
+                        "Perekond laaditi, kuid sellel ei leitud paigutatavat tüüpi.");
                 }
                 catch (Exception ex)
                 {
-                    TaskDialog.Show("Perekonnateek",
-                        "Perekond laaditi, kuid paigutamine ebaõnnestus:\n" + ex.Message);
+                    LibraryDialogs.Error("Paigutamine ebaõnnestus",
+                        "Perekond laaditi, kuid paigutamist ei saanud alustada.", ex.Message);
                 }
             }
             else
             {
-                TaskDialog.Show("Perekonnateek",
-                    $"Laetud: {loaded}\nVahele jäetud: {skipped}\nEbaõnnestunud: {failed}");
+                ShowSummary(loaded, upToDate, skipped, failed, firstError);
             }
         }
 
-        private static TaskDialogResult ShowConflictDialog(string familyName, string fullPath)
+        private static void ShowSummary(int loaded, int upToDate, int skipped, int failed, string firstError)
         {
-            var td = new TaskDialog("Perekonnateek")
+            // Only the counts that happened, in plain words.
+            var lines = new List<string>();
+            if (loaded > 0) lines.Add("Laaditud: " + loaded);
+            if (upToDate > 0) lines.Add("Juba ajakohane: " + upToDate);
+            if (skipped > 0) lines.Add("Vahele jäetud: " + skipped);
+            if (failed > 0) lines.Add("Ebaõnnestunud: " + failed);
+            var message = lines.Count > 0 ? string.Join("\n", lines) : "Midagi ei laaditud.";
+
+            if (failed > 0)
+                LibraryDialogs.Error(loaded + upToDate > 0 ? "Osa perekondi jäi laadimata" : "Laadimine ebaõnnestus", message, firstError);
+            else
+                LibraryDialogs.Info(loaded > 0 ? "Perekonnad laaditud" : "Midagi ei muutunud", message, null,
+                    loaded > 0 ? DialogKind.Success : DialogKind.Info);
+        }
+
+        private static Family FindFamily(Document doc, string familyName)
+        {
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(Family))
+                .Cast<Family>()
+                .FirstOrDefault(f => string.Equals(f.Name, familyName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private enum ConflictResult { Cancel, Overwrite, Skip, OverwriteAll, SkipAll }
+
+        private static ConflictResult ShowConflictDialog(string familyName, string fullPath, bool several)
+        {
+            var choices = new List<DialogChoice>
             {
-                MainInstruction = "Perekond on juba projektis olemas",
-                MainContent =
-                    $"Perekond \"{familyName}\" on juba projekti laaditud.\n\n" +
-                    "Mida soovid teha?",
-                AllowCancellation = true
+                new DialogChoice("Kirjuta üle", "Asenda projektis olev perekond teegis oleva versiooniga."),
+                new DialogChoice("Jäta vahele", "Kasuta projektis juba olevat perekonda.")
             };
+            if (several)
+            {
+                choices.Add(new DialogChoice("Kirjuta kõik üle", "Tee sama kõigi projektis juba olevate perekondadega."));
+                choices.Add(new DialogChoice("Jäta kõik vahele", "Ära laadi ühtegi perekonda, mis on juba projektis."));
+            }
 
-            td.AddCommandLink(
-                TaskDialogCommandLinkId.CommandLink1,
-                "Kirjuta üle",
-                "Asenda projekti olemasolev perekond teegis oleva versiooniga.");
+            var index = LibraryDialogs.Choose(
+                "Perekond on juba projektis",
+                $"„{familyName}” on projekti juba laaditud. Mida teha?",
+                choices,
+                fullPath,
+                "Katkesta laadimine");
 
-            td.AddCommandLink(
-                TaskDialogCommandLinkId.CommandLink2,
-                "Jäta vahele",
-                "Kasuta projekti olemasolevat perekonda.");
-
-            td.AddCommandLink(
-                TaskDialogCommandLinkId.CommandLink3,
-                "Kirjuta kõik üle",
-                "Kirjuta üle kõik projektis juba olemasolevad perekonnad.");
-
-            td.AddCommandLink(
-                TaskDialogCommandLinkId.CommandLink4,
-                "Jäta kõik vahele",
-                "Ära lae ühtegi perekonda, mis on juba projektis olemas.");
-
-            td.ExpandedContent = fullPath;
-
-            return td.Show();
+            switch (index)
+            {
+                case 0: return ConflictResult.Overwrite;
+                case 1: return ConflictResult.Skip;
+                case 2: return ConflictResult.OverwriteAll;
+                case 3: return ConflictResult.SkipAll;
+                default: return ConflictResult.Cancel;
+            }
         }
     }
 }

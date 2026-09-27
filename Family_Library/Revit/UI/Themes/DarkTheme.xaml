@@ -1,33 +1,77 @@
-﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!--  Colors for Dark Theme  -->
-    <Color x:Key="PrimaryBackgroundColor">#FF1F1F1F</Color>
-    <Color x:Key="SecondaryBackgroundColor">#FF292929</Color>
-    <Color x:Key="BorderBrushColor">#FF444444</Color>
-    <Color x:Key="ForegroundColor">White</Color>
-    <Color x:Key="HighlightColor">#FF444444</Color>
-    <Color x:Key="IconColor">White</Color>
-    <Color x:Key="IconForegroundColor">#FF808080</Color>
-    <Color x:Key="IconHoverColor">#bebebe</Color>
-    <Color x:Key="IconPressedColor">Black</Color>
-    <Color x:Key="TextHighlightColor">#FF0078D7</Color>
-    <Color x:Key="SelectionHoverColor">#FF0078D7</Color>
-    <Color x:Key="SelectionPressedColor">#FFD7E4F2</Color>
+    <!--
+        Dark appearance (same palette as RK Tools Sentinel). Neutral graphite greys, system accent and status hues.
+        Materials are gradients + edge highlights over an opaque window: WPF cannot blur what is behind it.
+        Every key here must also exist in LightTheme.xaml.
+    -->
 
+    <!--  Base  -->
+    <SolidColorBrush x:Key="Window.Background" Color="#FF1E1E20" />
+    <SolidColorBrush x:Key="Window.Stroke" Color="#FF3A3A3E" />
 
-    <!--  Brushes  -->
-    <SolidColorBrush x:Key="PrimaryBackgroundBrush" Color="{StaticResource PrimaryBackgroundColor}" />
-    <SolidColorBrush x:Key="SecondaryBackgroundBrush" Color="{StaticResource SecondaryBackgroundColor}" />
-    <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderBrushColor}" />
-    <SolidColorBrush x:Key="ForegroundBrush" Color="{StaticResource ForegroundColor}" />
-    <SolidColorBrush x:Key="TextBrush" Color="White" />
-    <SolidColorBrush x:Key="HighlightBrush" Color="{StaticResource HighlightColor}" />
-    <SolidColorBrush x:Key="IconBrush" Color="{StaticResource IconColor}" />
-    <SolidColorBrush x:Key="IconForegroundBrush" Color="{StaticResource IconForegroundColor}" />
-    <SolidColorBrush x:Key="IconHoverBrush" Color="{StaticResource IconHoverColor}" />
-    <SolidColorBrush x:Key="IconPressedBrush" Color="{StaticResource IconPressedColor}" />
-    <SolidColorBrush x:Key="TextHighlightBrush" Color="{StaticResource TextHighlightColor}" />
-    <SolidColorBrush x:Key="SelectionHoverBrush" Color="{StaticResource SelectionHoverColor}" />
-    <SolidColorBrush x:Key="SelectionPressedBrush" Color="{StaticResource SelectionPressedColor}" />
+    <!--  Materials  -->
+    <LinearGradientBrush x:Key="Sidebar.Material" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Offset="0" Color="#FF2C2C30" />
+        <GradientStop Offset="1" Color="#FF242427" />
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="Sidebar.Edge" Color="#1FFFFFFF" />
+    <LinearGradientBrush x:Key="Floating.Material" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Offset="0" Color="#FA38383C" />
+        <GradientStop Offset="1" Color="#FA303034" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Floating.Edge" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Offset="0" Color="#33FFFFFF" />
+        <GradientStop Offset="0.5" Color="#12FFFFFF" />
+        <GradientStop Offset="1" Color="#0AFFFFFF" />
+    </LinearGradientBrush>
+    <Color x:Key="Shadow.Color">#FF000000</Color>
+
+    <!--  Surfaces (opaque – beneath lists and forms)  -->
+    <SolidColorBrush x:Key="Surface.Content" Color="#FF252528" />
+    <SolidColorBrush x:Key="Surface.Raised" Color="#FF2C2C2F" />
+    <SolidColorBrush x:Key="Surface.Inset" Color="#FF202023" />
+    <SolidColorBrush x:Key="Surface.Stroke" Color="#FF38383C" />
+    <SolidColorBrush x:Key="Separator" Color="#FF333337" />
+    <SolidColorBrush x:Key="Thumb.Background" Color="#FF303033" />
+
+    <!--  Controls  -->
+    <SolidColorBrush x:Key="Control.Fill" Color="#FF3A3A3E" />
+    <SolidColorBrush x:Key="Control.FillHover" Color="#FF444449" />
+    <SolidColorBrush x:Key="Control.FillPressed" Color="#FF2F2F33" />
+    <SolidColorBrush x:Key="Control.Stroke" Color="#FF4A4A4F" />
+    <SolidColorBrush x:Key="Control.Plain.Hover" Color="#1AFFFFFF" />
+    <SolidColorBrush x:Key="Control.Plain.Pressed" Color="#29FFFFFF" />
+    <SolidColorBrush x:Key="Input.Fill" Color="#FF1C1C1F" />
+    <SolidColorBrush x:Key="Input.Stroke" Color="#FF46464B" />
+    <SolidColorBrush x:Key="Input.StrokeHover" Color="#FF5A5A60" />
+
+    <!--  Text  -->
+    <SolidColorBrush x:Key="Text.Primary" Color="#FFF2F2F5" />
+    <SolidColorBrush x:Key="Text.Secondary" Color="#FFA8A8B0" />
+    <SolidColorBrush x:Key="Text.Tertiary" Color="#FF7C7C84" />
+    <SolidColorBrush x:Key="Text.Disabled" Color="#FF5E5E64" />
+    <SolidColorBrush x:Key="Text.OnAccent" Color="#FFFFFFFF" />
+
+    <!--  Accent + focus  -->
+    <SolidColorBrush x:Key="Accent" Color="#FF0A84FF" />
+    <SolidColorBrush x:Key="Accent.Hover" Color="#FF3395FF" />
+    <SolidColorBrush x:Key="Accent.Pressed" Color="#FF0068CC" />
+    <SolidColorBrush x:Key="Accent.Subtle" Color="#330A84FF" />
+    <SolidColorBrush x:Key="Accent.Text" Color="#FF4DA3FF" />
+    <SolidColorBrush x:Key="Focus.Ring" Color="#FF4DA3FF" />
+
+    <!--  Lists  -->
+    <SolidColorBrush x:Key="Row.Hover" Color="#12FFFFFF" />
+    <SolidColorBrush x:Key="Row.Selected" Color="#4D0A84FF" />
+    <SolidColorBrush x:Key="Row.SelectedInactive" Color="#26FFFFFF" />
+
+    <!--  Status: text colour + subtle fill (never colour alone – always with a glyph or a word)  -->
+    <SolidColorBrush x:Key="Status.Ok" Color="#FF32D74B" />
+    <SolidColorBrush x:Key="Status.Ok.Subtle" Color="#2632D74B" />
+    <SolidColorBrush x:Key="Status.Warning" Color="#FFFFB340" />
+    <SolidColorBrush x:Key="Status.Warning.Subtle" Color="#26FF9F0A" />
+    <SolidColorBrush x:Key="Status.Error" Color="#FFFF6961" />
+    <SolidColorBrush x:Key="Status.Neutral.Subtle" Color="#1FFFFFFF" />
 
 </ResourceDictionary>

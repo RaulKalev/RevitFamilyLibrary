@@ -9,12 +9,159 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Windows.Input;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using WinForms = System.Windows.Forms;
 
 namespace Family_Library.UI.ViewModels
 {
-    public class MainWindowViewModel
+    public class MainWindowViewModel : INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string name = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+        // ---------------------------------------------------------------- pages
+
+        private string _currentPage = "Library";
+        public string CurrentPage
+        {
+            get => _currentPage;
+            set
+            {
+                _currentPage = value == "Settings" ? "Settings" : "Library";
+                OnPropertyChanged(nameof(IsLibraryPage));
+                OnPropertyChanged(nameof(IsSettingsPage));
+                OnPropertyChanged(nameof(PageTitle));
+                OnPropertyChanged(nameof(PageSubtitle));
+            }
+        }
+
+        public bool IsLibraryPage
+        {
+            get => CurrentPage == "Library";
+            set { if (value) CurrentPage = "Library"; }
+        }
+
+        public bool IsSettingsPage
+        {
+            get => CurrentPage == "Settings";
+            set { if (value) CurrentPage = "Settings"; }
+        }
+
+        public string PageTitle => IsSettingsPage ? "Seaded" : "Teek";
+        public string PageSubtitle => IsSettingsPage
+            ? "Teegi kaust, pisipildid ja kategooriad"
+            : (HasLibraryRoot ? LibraryRoot : "");
+
+        public ICommand ShowSettingsCommand => new ricaun.Revit.Mvvm.RelayCommand(() => CurrentPage = "Settings");
+
+        // ---------------------------------------------------------------- counts and states
+
+        public int TotalCount => _allItems?.Count ?? 0;
+        public int VisibleCount => Items.Count;
+        public int LoadedCount => _allItems?.Count(x => x.IsLoadedInProject) ?? 0;
+        public int SelectedCount => SelectedItems?.Count ?? 0;
+        public bool HasSelection => SelectedCount > 0;
+
+        public string SelectionText => SelectedCount == 1
+            ? "1 perekond valitud"
+            : SelectedCount + " perekonda valitud";
+
+        public string LoadButtonText => SelectedCount > 1 ? "Laadi " + SelectedCount + " perekonda" : "Laadi perekond";
+
+        public bool HasLibraryRoot => !string.IsNullOrWhiteSpace(LibraryRoot) && Directory.Exists(LibraryRoot);
+        public bool HasIndex { get; private set; }
+
+        /// <summary>Filters that hide items (the view mode is a scope, not a filter).</summary>
+        public bool IsFiltered =>
+            !string.IsNullOrWhiteSpace(SearchText) || IsElChecked || IsEnChecked || IsEaChecked ||
+            !string.Equals(SelectedFilterCategory, "All", StringComparison.OrdinalIgnoreCase);
+
+        public bool ShowNoRoot => !HasLibraryRoot;
+        public bool ShowNoIndex => HasLibraryRoot && !HasIndex;
+        public bool ShowNoMatches => HasLibraryRoot && HasIndex && VisibleCount == 0;
+        public bool ShowList => HasLibraryRoot && HasIndex && VisibleCount > 0;
+
+        public string SummaryText
+        {
+            get
+            {
+                if (!HasIndex) return "";
+                var shown = VisibleCount == TotalCount
+                    ? TotalCount + " perekonda"
+                    : "Näitan " + VisibleCount + " / " + TotalCount + " perekonda";
+                return LoadedCount > 0 ? shown + " · " + LoadedCount + " projektis" : shown;
+            }
+        }
+
+        public ICommand ClearFiltersCommand => new ricaun.Revit.Mvvm.RelayCommand(ClearFilters);
+
+        private void ClearFilters()
+        {
+            _isElChecked = _isEnChecked = _isEaChecked = false;
+            _searchText = "";
+            _selectedFilterCategory = "All";
+            UpdateVisibleCategories();
+            ApplyFilters();
+            OnPropertyChanged(nameof(IsElChecked));
+            OnPropertyChanged(nameof(IsEnChecked));
+            OnPropertyChanged(nameof(IsEaChecked));
+            OnPropertyChanged(nameof(SearchText));
+            OnPropertyChanged(nameof(SelectedFilterCategory));
+        }
+
+        /// <summary>Re-applies search and filters (after tags change on an item).</summary>
+        public void RefreshFilter() => ApplyFilters();
+
+        public void SetSelection(List<LibraryItem> items)
+        {
+            SelectedItems = items ?? new List<LibraryItem>();
+            OnPropertyChanged(nameof(SelectedCount));
+            OnPropertyChanged(nameof(HasSelection));
+            OnPropertyChanged(nameof(SelectionText));
+            OnPropertyChanged(nameof(LoadButtonText));
+        }
+
+        private void RaiseListState()
+        {
+            foreach (var p in new[] { nameof(TotalCount), nameof(VisibleCount), nameof(LoadedCount), nameof(HasIndex),
+                                      nameof(HasLibraryRoot), nameof(IsFiltered), nameof(ShowNoRoot), nameof(ShowNoIndex),
+                                      nameof(ShowNoMatches), nameof(ShowList), nameof(SummaryText), nameof(PageSubtitle) })
+                OnPropertyChanged(p);
+        }
+
+        // ---------------------------------------------------------------- background work (external events)
+
+        public bool IsBusy { get; private set; }
+        public string BusyText { get; private set; } = "";
+        public string StatusMessage { get; private set; } = "";
+        public bool StatusIsError { get; private set; }
+
+        private void StartTask(LibraryTaskType type, string busyText)
+        {
+            ExternalEventBridge.Handler.Request.TaskType = type;
+            BusyText = busyText;
+            IsBusy = true;
+            StatusMessage = "";
+            StatusIsError = false;
+            OnPropertyChanged(nameof(BusyText));
+            OnPropertyChanged(nameof(IsBusy));
+            OnPropertyChanged(nameof(StatusMessage));
+            ExternalEventBridge.Event.Raise();
+        }
+
+        private void EndTask()
+        {
+            if (!IsBusy) return;
+            IsBusy = false;
+            StatusIsError = ExternalEventBridge.Handler?.LastRunFailed == true;
+            StatusMessage = BusyText.TrimEnd('…') + (StatusIsError ? " – ebaõnnestus." : " – valmis.");
+            OnPropertyChanged(nameof(IsBusy));
+            OnPropertyChanged(nameof(StatusIsError));
+            OnPropertyChanged(nameof(StatusMessage));
+        }
+
         private static ObservableCollection<string> LoadTypeThumbs(string libraryRoot, string relativePath)
         {
             if (string.IsNullOrWhiteSpace(libraryRoot) || string.IsNullOrWhiteSpace(relativePath))
@@ -82,8 +229,9 @@ namespace Family_Library.UI.ViewModels
             set
             {
                 var s = SettingsStore.Load();
-                s.LibraryRoot = value;
+                s.LibraryRoot = (value ?? "").Trim();
                 SettingsStore.Save(s);
+                Refresh();
             }
         }
 
@@ -111,14 +259,16 @@ namespace Family_Library.UI.ViewModels
             _uiapp = uiapp;
             LoadUserCategories();
 
-            // Subscribe to completion event to refresh UI
+            // Subscribe to completion event to refresh UI.
+            // The VM is created on the window's thread; Application.Current can be null inside Revit.
+            var dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
             if (ExternalEventBridge.Handler != null)
             {
                 _onCompletedHandler = (s, e) =>
                 {
-                    // Refresh on UI thread
-                    System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                    dispatcher.Invoke(() =>
                     {
+                        EndTask();
                         Refresh();
                     });
                 };
@@ -244,24 +394,31 @@ namespace Family_Library.UI.ViewModels
                 if (dlg.ShowDialog() != WinForms.DialogResult.OK)
                     return;
 
-                LibraryRoot = dlg.SelectedPath;
-                Refresh();
+                LibraryRoot = dlg.SelectedPath; // refreshes
             }
         }
         private void Refresh()
         {
             Items.Clear();
             _allItems.Clear();
+            HasIndex = false;
 
             var root = LibraryRoot;
             if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+            {
+                RaiseListState();
                 return;
+            }
 
             var indexPath = Path.Combine(root, "index.json");
             if (!File.Exists(indexPath))
+            {
+                RaiseListState();
                 return;
+            }
 
             var list = IndexStore.Read(indexPath) ?? new List<LibraryItem>();
+            HasIndex = true;
 
             // Filter out Revit backup copies (e.g. Family.0001.rfa) already in the index
             list = list.Where(item => !IsRevitBackupEntry(item.RelativePath)).ToList();
@@ -531,6 +688,8 @@ namespace Family_Library.UI.ViewModels
 
             foreach (var it in q)
                 Items.Add(it);
+
+            RaiseListState();
         }
 
         private static bool Contains(string haystack, string needle)
@@ -547,8 +706,7 @@ namespace Family_Library.UI.ViewModels
                 return;
 
             ExternalEventBridge.Handler.Request.LibraryRoot = LibraryRoot;
-            ExternalEventBridge.Handler.Request.TaskType = LibraryTaskType.BuildIndex;
-            ExternalEventBridge.Event.Raise();
+            StartTask(LibraryTaskType.BuildIndex, "Koostan indeksit…");
         }
 
         private void RunGenerate()
@@ -558,8 +716,7 @@ namespace Family_Library.UI.ViewModels
 
             ExternalEventBridge.Handler.Request.LibraryRoot = LibraryRoot;
             ExternalEventBridge.Handler.Request.ThumbnailPixelSize = ThumbnailPixelSize;
-            ExternalEventBridge.Handler.Request.TaskType = LibraryTaskType.GenerateThumbnailsAndIndex;
-            ExternalEventBridge.Event.Raise();
+            StartTask(LibraryTaskType.GenerateThumbnailsAndIndex, "Genereerin pisipilte ja indeksit…");
         }
 
         private void RunLoadSelected()
@@ -582,8 +739,7 @@ namespace Family_Library.UI.ViewModels
 
             ExternalEventBridge.Handler.Request.SelectedFamilyPaths = paths;
             ExternalEventBridge.Handler.Request.PlaceAfterLoading = PlaceAfterLoading;
-            ExternalEventBridge.Handler.Request.TaskType = LibraryTaskType.LoadSelectedFamilies;
-            ExternalEventBridge.Event.Raise();
+            StartTask(LibraryTaskType.LoadSelectedFamilies, paths.Length == 1 ? "Laadin perekonda…" : "Laadin " + paths.Length + " perekonda…");
         }
         public void EnsureUserCategoryExists(string category)
         {

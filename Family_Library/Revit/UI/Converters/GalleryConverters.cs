@@ -112,6 +112,29 @@ namespace Family_Library.UI.Converters
             => throw new NotSupportedException();
     }
 
+    public class InverseBoolToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            => value is bool b && b ? Visibility.Collapsed : Visibility.Visible;
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotSupportedException();
+    }
+
+    /// <summary>Visible when the string is empty; ConverterParameter "invert" = visible when it has text.</summary>
+    public class EmptyToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            var empty = string.IsNullOrWhiteSpace(value as string);
+            if (string.Equals(parameter as string, "invert", StringComparison.OrdinalIgnoreCase)) empty = !empty;
+            return empty ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotSupportedException();
+    }
+
     public class EqualityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)

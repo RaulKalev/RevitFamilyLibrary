@@ -32,7 +32,7 @@ namespace Family_Library.Services
                 .ToArray();
             if (rfas.Length == 0)
             {
-                TaskDialog.Show("Family Library", $"No .rfa files found in:\n{familiesFolder}");
+                UI.Dialogs.LibraryDialogs.Info("Perekondi ei leitud", "Kaustas pole ühtegi .rfa faili.", familiesFolder);
                 return;
             }
 
@@ -170,10 +170,10 @@ namespace Family_Library.Services
                     if (!errorShown)
                     {
                         errorShown = true;
-                        TaskDialog.Show(
-                            "Family Library",
-                            $"Thumbnail export failed for:\n{rfa}\n\n{ex.Message}"
-                        );
+                        UI.Dialogs.LibraryDialogs.Error(
+                            "Pisipildi loomine ebaõnnestus",
+                            ex.Message + "\n\nÜlejäänud perekondade pisipildid luuakse edasi; seda teadet ei näidata uuesti.",
+                            rfa);
                     }
                 }
                 finally

@@ -1,993 +1,1132 @@
-﻿<Window
+<Window
     x:Class="Family_Library.UI.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:conv="clr-namespace:Family_Library.UI.Converters"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:Family_Library.UI"
     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+    x:Name="Root"
     Title="Perekonnateek"
-    Width="800"
-    Height="1000"
-    MinWidth="750"
-    MinHeight="600"
-    AllowsTransparency="True"
-    Background="Transparent"
-    WindowStartupLocation="CenterScreen"
-    WindowStyle="None"
+    Width="1100"
+    Height="760"
+    MinWidth="760"
+    MinHeight="520"
+    Background="{DynamicResource Window.Background}"
+    TextOptions.TextFormattingMode="Display"
+    UseLayoutRounding="True"
+    WindowStartupLocation="Manual"
     mc:Ignorable="d">
-
+    <!--
+        Layout and design system follow RK Tools Sentinel. WindowChrome keeps native Windows behaviour (Snap,
+        Win+arrows, Alt+Space, resize borders, DWM shadow, Windows 11 corners); the caption area is drawn here.
+    -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome
+            CaptionHeight="52"
+            CornerRadius="0"
+            GlassFrameThickness="0,0,0,1"
+            NonClientFrameEdges="None"
+            ResizeBorderThickness="6"
+            UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
 
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!--  Material Design default theme  -->
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.ComboBox.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.ToggleButton.xaml" />
-                <!--  Material Design dark theme  -->
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Dark.xaml" />
-
-                <!--  ElementStyles uses those brushes  -->
-                <ResourceDictionary Source="pack://application:,,,/Family_Library;component/Revit/UI/Themes/ElementStyles.xaml" />
+                <!--  Palette + materials are replaced at runtime by ThemeManager; styles use DynamicResource  -->
+                <ResourceDictionary Source="pack://application:,,,/Family_Library;component/Revit/UI/Themes/DarkTheme.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Family_Library;component/Revit/UI/Themes/LibraryStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
-
-            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
 
             <conv:HoverAndMultiThumbsToVisibilityConverter x:Key="HoverAndMultiThumbsToVisibilityConverter" />
             <conv:PlusOneConverter x:Key="PlusOneConverter" />
             <conv:PathToImageConverter x:Key="PathToImageConverter" />
-
-            <!--  Converter  -->
             <conv:StringListToTextConverter x:Key="TypeListConverter" />
             <conv:TupleConverter x:Key="TupleConverter" />
             <conv:IsCategoryAssignedConverter x:Key="IsCategoryAssignedConverter" />
             <conv:EqualityConverter x:Key="EqualityConverter" />
+            <conv:EmptyToVisibilityConverter x:Key="EmptyToVis" />
+            <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis" />
+
+            <!--  Windows caption buttons (familiar placement and size; close turns red)  -->
+            <Style x:Key="CaptionButton" TargetType="{x:Type Button}">
+                <Setter Property="Width" Value="46" />
+                <Setter Property="Height" Value="36" />
+                <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />
+                <Setter Property="IsTabStop" Value="False" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type Button}">
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Control.Plain.Hover}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Control.Plain.Pressed}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style
+                x:Key="CaptionCloseButton"
+                BasedOn="{StaticResource CaptionButton}"
+                TargetType="{x:Type Button}">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type Button}">
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="#C42B1C" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="#A32519" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!--  Sidebar label: hidden in compact (icon-only) mode  -->
+            <Style x:Key="SidebarLabel" TargetType="{x:Type TextBlock}">
+                <Setter Property="Margin" Value="10,0,0,0" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsCompact, ElementName=Root}" Value="True">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="SidebarIcon" TargetType="{x:Type materialDesign:PackIcon}">
+                <Setter Property="Width" Value="18" />
+                <Setter Property="Height" Value="18" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
+            </Style>
+
+            <!--  Empty state: glyph, title, one sentence, one action  -->
+            <Style x:Key="EmptyState" TargetType="{x:Type StackPanel}">
+                <Setter Property="MaxWidth" Value="380" />
+                <Setter Property="HorizontalAlignment" Value="Center" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="local:Motion.Reveal" Value="True" />
+            </Style>
+            <Style x:Key="EmptyGlyph" TargetType="{x:Type materialDesign:PackIcon}">
+                <Setter Property="Width" Value="36" />
+                <Setter Property="Height" Value="36" />
+                <Setter Property="Margin" Value="0,0,0,12" />
+                <Setter Property="HorizontalAlignment" Value="Center" />
+                <Setter Property="Foreground" Value="{DynamicResource Text.Tertiary}" />
+            </Style>
+            <Style
+                x:Key="EmptyTitle"
+                BasedOn="{StaticResource Type.Section}"
+                TargetType="{x:Type TextBlock}">
+                <Setter Property="HorizontalAlignment" Value="Center" />
+                <Setter Property="Margin" Value="0,0,0,6" />
+            </Style>
+            <Style
+                x:Key="EmptyText"
+                BasedOn="{StaticResource Type.Secondary}"
+                TargetType="{x:Type TextBlock}">
+                <Setter Property="TextAlignment" Value="Center" />
+                <Setter Property="Margin" Value="0,0,0,16" />
+            </Style>
+
+            <!--  Settings row label (left) with an optional explanation below  -->
+            <Style x:Key="SettingLabel" TargetType="{x:Type TextBlock}">
+                <Setter Property="FontSize" Value="{StaticResource FontSize.Body}" />
+                <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            </Style>
+            <Style
+                x:Key="SettingHint"
+                BasedOn="{StaticResource Type.Caption}"
+                TargetType="{x:Type TextBlock}">
+                <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+                <Setter Property="Margin" Value="0,2,0,0" />
+            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
-    <Grid Background="Transparent" ClipToBounds="True">
+    <Window.InputBindings>
+        <KeyBinding Key="F5" Command="{Binding RefreshCommand}" />
+    </Window.InputBindings>
 
-        <!--  Outer blurred border  -->
+    <Grid
+        x:Name="RootGrid"
+        Background="{DynamicResource Window.Background}"
+        TextElement.FontFamily="{StaticResource Font.Text}"
+        TextElement.FontSize="{StaticResource FontSize.Body}"
+        TextElement.Foreground="{DynamicResource Text.Primary}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="SidebarColumn" Width="200" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!--  ============ Sidebar (structural material: gradient + right edge highlight) ============  -->
         <Border
-            BorderBrush="{DynamicResource BorderBrush}"
-            BorderThickness="2"
-            CornerRadius="10"
-            Opacity="0.70"
-            SnapsToDevicePixels="True">
-            <Border.Effect>
-                <BlurEffect KernelType="Gaussian" Radius="2" />
-            </Border.Effect>
+            Background="{DynamicResource Sidebar.Material}"
+            BorderBrush="{DynamicResource Sidebar.Edge}"
+            BorderThickness="0,0,1,0">
+            <DockPanel>
+                <!--  App identity (part of the draggable caption)  -->
+                <StackPanel
+                    Height="52"
+                    Margin="17,0,12,0"
+                    DockPanel.Dock="Top"
+                    Orientation="Horizontal">
+                    <Border
+                        Width="26"
+                        Height="26"
+                        VerticalAlignment="Center"
+                        Background="{DynamicResource Accent}"
+                        CornerRadius="7">
+                        <materialDesign:PackIcon
+                            Width="16"
+                            Height="16"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="{DynamicResource Text.OnAccent}"
+                            Kind="Bookshelf" />
+                    </Border>
+                    <StackPanel Margin="0,0,0,0" VerticalAlignment="Center">
+                        <TextBlock
+                            FontWeight="SemiBold"
+                            Style="{StaticResource SidebarLabel}"
+                            Text="Perekonnateek" />
+                        <TextBlock
+                            FontSize="{StaticResource FontSize.Caption}"
+                            Foreground="{DynamicResource Text.Tertiary}"
+                            Style="{StaticResource SidebarLabel}"
+                            Text="RK Tools" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!--  Footer: appearance toggle  -->
+                <Button
+                    x:Name="ThemeButton"
+                    Height="32"
+                    Margin="8,0,8,12"
+                    Padding="10,0"
+                    HorizontalContentAlignment="Left"
+                    AutomationProperties.Name="Vaheta tume ja hele välimus"
+                    Click="ToggleTheme_Click"
+                    DockPanel.Dock="Bottom"
+                    Style="{StaticResource Button.Plain}"
+                    ToolTip="Vaheta tume ja hele välimus">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon
+                            x:Name="ThemeIcon"
+                            Width="16"
+                            Height="16"
+                            VerticalAlignment="Center"
+                            Foreground="{DynamicResource Text.Secondary}"
+                            Kind="WeatherNight" />
+                        <TextBlock
+                            x:Name="ThemeText"
+                            Foreground="{DynamicResource Text.Secondary}"
+                            Style="{StaticResource SidebarLabel}"
+                            Text="Tume välimus" />
+                    </StackPanel>
+                </Button>
+
+                <!--  Navigation  -->
+                <StackPanel
+                    Margin="0,6,0,0"
+                    AutomationProperties.Name="Lehed"
+                    KeyboardNavigation.DirectionalNavigation="Cycle"
+                    KeyboardNavigation.TabNavigation="Once">
+                    <RadioButton
+                        AutomationProperties.Name="Teek"
+                        GroupName="Nav"
+                        IsChecked="{Binding IsLibraryPage}"
+                        Style="{StaticResource SidebarItem}"
+                        ToolTip="Sirvi ja laadi perekondi (Ctrl+1)">
+                        <DockPanel>
+                            <Border
+                                Margin="6,0,0,0"
+                                DockPanel.Dock="Right"
+                                Style="{StaticResource Badge}"
+                                ToolTip="Perekondi teegis">
+                                <Border.Visibility>
+                                    <MultiBinding Converter="{x:Static local:BadgeVisibility.Instance}">
+                                        <Binding Path="TotalCount" />
+                                        <Binding ElementName="Root" Path="IsCompact" />
+                                    </MultiBinding>
+                                </Border.Visibility>
+                                <TextBlock Text="{Binding TotalCount}" />
+                            </Border>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="ViewGridOutline" Style="{StaticResource SidebarIcon}" />
+                                <TextBlock Style="{StaticResource SidebarLabel}" Text="Teek" />
+                            </StackPanel>
+                        </DockPanel>
+                    </RadioButton>
+                    <RadioButton
+                        AutomationProperties.Name="Seaded"
+                        GroupName="Nav"
+                        IsChecked="{Binding IsSettingsPage}"
+                        Style="{StaticResource SidebarItem}"
+                        ToolTip="Teegi kaust, pisipildid ja kategooriad (Ctrl+2)">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="CogOutline" Style="{StaticResource SidebarIcon}" />
+                            <TextBlock Style="{StaticResource SidebarLabel}" Text="Seaded" />
+                        </StackPanel>
+                    </RadioButton>
+                </StackPanel>
+            </DockPanel>
         </Border>
 
-        <!--  Main container  -->
-        <Border
-            Margin="2"
-            Background="{DynamicResource PrimaryBackgroundBrush}"
-            ClipToBounds="True"
-            CornerRadius="10">
+        <!--  ============ Content column ============  -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="52" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-            <Grid>
+            <!--  Title area: page title, library path, caption buttons (draggable)  -->
+            <DockPanel Background="Transparent">
+                <StackPanel
+                    VerticalAlignment="Top"
+                    DockPanel.Dock="Right"
+                    Orientation="Horizontal">
+                    <Button
+                        AutomationProperties.Name="Minimeeri"
+                        Click="Minimize_Click"
+                        Style="{StaticResource CaptionButton}"
+                        ToolTip="Minimeeri">
+                        <materialDesign:PackIcon
+                            Width="14"
+                            Height="14"
+                            Kind="WindowMinimize" />
+                    </Button>
+                    <Button
+                        x:Name="MaximizeButton"
+                        AutomationProperties.Name="Maksimeeri"
+                        Click="Maximize_Click"
+                        Style="{StaticResource CaptionButton}"
+                        ToolTip="Maksimeeri">
+                        <materialDesign:PackIcon
+                            x:Name="MaximizeIcon"
+                            Width="14"
+                            Height="14"
+                            Kind="WindowMaximize" />
+                    </Button>
+                    <Button
+                        AutomationProperties.Name="Sulge"
+                        Click="Close_Click"
+                        Style="{StaticResource CaptionCloseButton}"
+                        ToolTip="Sulge">
+                        <materialDesign:PackIcon
+                            Width="14"
+                            Height="14"
+                            Kind="WindowClose" />
+                    </Button>
+                </StackPanel>
+
+                <StackPanel
+                    Margin="24,0,12,0"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        Style="{StaticResource Type.Title}"
+                        Text="{Binding PageTitle}" />
+                    <TextBlock
+                        x:Name="PageSubtitleText"
+                        MaxWidth="460"
+                        Margin="12,3,0,0"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource Type.Secondary}"
+                        Text="{Binding PageSubtitle}"
+                        TextTrimming="CharacterEllipsis"
+                        TextWrapping="NoWrap"
+                        ToolTip="{Binding PageSubtitle}" />
+                </StackPanel>
+            </DockPanel>
+
+            <!--  ================================ Library page ================================  -->
+            <Grid
+                x:Name="LibraryPage"
+                Grid.Row="1"
+                Margin="24,0,24,0"
+                local:Motion.Reveal="True"
+                Visibility="{Binding IsLibraryPage, Converter={StaticResource BoolToVis}}">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="30" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <!--  =========================  -->
-                <!--  Title bar row  -->
-                <!--  =========================  -->
-                <Grid
-                    Grid.Row="0"
-                    Background="Transparent"
-                    MouseDown="TitleBar_MouseDown">
+                <!--  One control row: scope, discipline, category | search, refresh  -->
+                <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" MinWidth="12" />
+                        <ColumnDefinition
+                            Width="*"
+                            MinWidth="140"
+                            MaxWidth="280" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <!--  Title  -->
-                    <TextBlock
-                        Grid.Column="0"
-                        Margin="10,0,10,0"
-                        VerticalAlignment="Center"
-                        FontSize="14"
-                        FontWeight="Bold"
-                        Foreground="{DynamicResource ForegroundBrush}"
-                        Text="Perekonnateek" />
+                    <!--  Scope: exactly one  -->
+                    <Border
+                        AutomationProperties.Name="Vaade"
+                        Style="{StaticResource Segmented}"
+                        ToolTip="Millist tüüpi perekondi näidata">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton
+                                AutomationProperties.Name="3D komponendid"
+                                Content="3D"
+                                GroupName="ViewModeGroup"
+                                IsChecked="{Binding ViewMode, Converter={StaticResource EqualityConverter}, ConverterParameter=3D}"
+                                Style="{StaticResource Segment}"
+                                ToolTip="3D komponendid" />
+                            <RadioButton
+                                AutomationProperties.Name="2D komponendid"
+                                Content="2D"
+                                GroupName="ViewModeGroup"
+                                IsChecked="{Binding ViewMode, Converter={StaticResource EqualityConverter}, ConverterParameter=2D}"
+                                Style="{StaticResource Segment}"
+                                ToolTip="2D komponendid (detailid, sümbolid)" />
+                            <RadioButton
+                                AutomationProperties.Name="Märgendid"
+                                Content="Tag"
+                                GroupName="ViewModeGroup"
+                                IsChecked="{Binding ViewMode, Converter={StaticResource EqualityConverter}, ConverterParameter=Tag}"
+                                Style="{StaticResource Segment}"
+                                ToolTip="Märgendid (Tag)" />
+                        </StackPanel>
+                    </Border>
 
+                    <!--  Discipline: any combination (none = all)  -->
+                    <Border
+                        Grid.Column="1"
+                        Margin="8,0,0,0"
+                        AutomationProperties.Name="Eriala"
+                        Style="{StaticResource Segmented}"
+                        ToolTip="Eriala. Vali üks või mitu; kui ükski pole valitud, näidatakse kõiki.">
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox
+                                AutomationProperties.Name="EL – elektripaigaldis"
+                                Content="EL"
+                                IsChecked="{Binding IsElChecked}"
+                                Style="{StaticResource Segment}"
+                                ToolTip="EL – elektripaigaldis" />
+                            <CheckBox
+                                AutomationProperties.Name="EN – nõrkvool"
+                                Content="EN"
+                                IsChecked="{Binding IsEnChecked}"
+                                Style="{StaticResource Segment}"
+                                ToolTip="EN – nõrkvool" />
+                            <CheckBox
+                                AutomationProperties.Name="EA – automaatika"
+                                Content="EA"
+                                IsChecked="{Binding IsEaChecked}"
+                                Style="{StaticResource Segment}"
+                                ToolTip="EA – automaatika" />
+                        </StackPanel>
+                    </Border>
 
-
-                    <!--  Window buttons  -->
-                    <StackPanel
+                    <ComboBox
                         Grid.Column="2"
-                        Margin="0,0,6,0"
-                        VerticalAlignment="Center"
-                        Orientation="Horizontal">
+                        Width="170"
+                        Margin="8,0,0,0"
+                        AutomationProperties.Name="Kategooria"
+                        ItemsSource="{Binding UserCategories}"
+                        SelectedItem="{Binding SelectedFilterCategory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        Style="{StaticResource Input.Combo}"
+                        ToolTip="Filtreeri kasutajakategooria järgi">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock x:Name="Label" Text="{Binding}" TextTrimming="CharacterEllipsis" />
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding}" Value="All">
+                                        <Setter TargetName="Label" Property="Text" Value="Kõik kategooriad" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
 
-                        <!--  Minimize  -->
-                        <Button
-                            Width="19"
-                            Height="19"
-                            Background="Transparent"
-                            BorderBrush="Transparent"
-                            Click="MinimizeButton_Click"
-                            ToolTip="Minimeeri">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Grid Background="Transparent">
-                                        <materialDesign:PackIcon
-                                            x:Name="MinimizeIcon"
-                                            Width="20"
-                                            Height="20"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            Foreground="{DynamicResource IconBrush}"
-                                            Kind="MinusCircleOutline" />
-                                    </Grid>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="MinimizeIcon" Property="Foreground" Value="#20C997" />
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter TargetName="MinimizeIcon" Property="Foreground" Value="#158D6A" />
-                                        </Trigger>
-                                        <Trigger Property="IsEnabled" Value="False">
-                                            <Setter TargetName="MinimizeIcon" Property="Opacity" Value="0.35" />
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
+                    <!--  Search field  -->
+                    <Border
+                        x:Name="SearchField"
+                        Grid.Column="4"
+                        Height="{StaticResource Size.Control}"
+                        Background="{DynamicResource Input.Fill}"
+                        BorderBrush="{DynamicResource Input.Stroke}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource Radius.Control}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="30" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <materialDesign:PackIcon
+                                Width="15"
+                                Height="15"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Foreground="{DynamicResource Text.Tertiary}"
+                                Kind="Magnify" />
+                            <TextBox
+                                x:Name="SearchTextBox"
+                                Grid.Column="1"
+                                AutomationProperties.Name="Otsi"
+                                Style="{StaticResource Input.Bare}"
+                                Tag="Otsi"
+                                Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="Otsi nime, kategooria, failitee, tüübi või sildi järgi (Ctrl+F)" />
+                            <Button
+                                Grid.Column="2"
+                                Width="24"
+                                Height="24"
+                                Margin="0,0,3,0"
+                                AutomationProperties.Name="Tühjenda otsing"
+                                Click="ClearSearchButton_Click"
+                                Style="{StaticResource Button.Icon}"
+                                ToolTip="Tühjenda otsing (Esc)"
+                                Visibility="{Binding Text, ElementName=SearchTextBox, Converter={StaticResource EmptyToVis}, ConverterParameter=invert}">
+                                <materialDesign:PackIcon
+                                    Width="14"
+                                    Height="14"
+                                    Kind="CloseCircle" />
+                            </Button>
+                            <Border
+                                x:Name="SearchFocus"
+                                Grid.ColumnSpan="3"
+                                Margin="-2"
+                                BorderBrush="{DynamicResource Focus.Ring}"
+                                BorderThickness="2"
+                                CornerRadius="7"
+                                IsHitTestVisible="False"
+                                Visibility="{Binding IsKeyboardFocusWithin, ElementName=SearchTextBox, Converter={StaticResource BoolToVis}}" />
+                        </Grid>
+                    </Border>
 
-                        <!--  Close  -->
-                        <Button
-                            Width="35"
-                            Height="19"
-                            Margin="4,0,0,0"
-                            Background="Transparent"
-                            BorderBrush="Transparent"
-                            Click="CloseButton_Click"
-                            ToolTip="Sulge">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Grid Background="Transparent">
-                                        <materialDesign:PackIcon
-                                            x:Name="CloseIcon"
-                                            Width="20"
-                                            Height="20"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            Foreground="{DynamicResource IconBrush}"
-                                            Kind="CloseCircleOutline" />
-                                    </Grid>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="CloseIcon" Property="Foreground" Value="#DC6B6B" />
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter TargetName="CloseIcon" Property="Foreground" Value="#B42C2C" />
-                                        </Trigger>
-                                        <Trigger Property="IsEnabled" Value="False">
-                                            <Setter TargetName="CloseIcon" Property="Opacity" Value="0.35" />
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
-
-                    </StackPanel>
+                    <Button
+                        Grid.Column="5"
+                        Width="{StaticResource Size.Control}"
+                        Height="{StaticResource Size.Control}"
+                        Margin="8,0,0,0"
+                        AutomationProperties.Name="Värskenda"
+                        Command="{Binding RefreshCommand}"
+                        Style="{StaticResource Button.Icon}"
+                        ToolTip="Lae indeks uuesti (F5)">
+                        <materialDesign:PackIcon
+                            Width="17"
+                            Height="17"
+                            Kind="Refresh" />
+                    </Button>
                 </Grid>
 
-                <!--  =========================  -->
-                <!--  Content  -->
-                <!--  =========================  -->
-                <Grid Grid.Row="1">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-
-                    <Border
-                        Margin="10"
-                        Background="Transparent"
-                        CornerRadius="10">
-
-                        <TabControl ItemContainerStyle="{StaticResource DarkTabItem}" Style="{StaticResource DarkTabControl}">
-                            <!--  =====================  -->
-                            <!--  KOGU  -->
-                            <!--  =====================  -->
-                            <TabItem x:Name="KoguTab" Header="Kogu" Margin="-2,0,0,0">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="*" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-
-                                    <!--  Filters row  -->
-                                    <Border
-                                        Grid.Row="0"
-                                        Margin="0,0,0,10"
-                                        Padding="10"
-                                        Background="{DynamicResource SecondaryBackgroundBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="0,10,10,10">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <TextBlock
-                                                Grid.Column="0"
-                                                Margin="0,0,10,0"
-                                                VerticalAlignment="Center"
-                                                Foreground="{DynamicResource ForegroundBrush}"
-                                                Text="Filtrid:" />
-
-                                            <Border
-                                                Grid.Column="1"
-                                                Height="28"
-                                                Width="150"
-                                                CornerRadius="6">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="{DynamicResource SecondaryBackgroundBrush}" />
-                                                        <Setter Property="BorderThickness" Value="1" />
-                                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-                                                        <Style.Triggers>
-                                                            <!-- Wrapper Glow Trigger -->
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter Property="BorderBrush" Value="#FFAAAAAA" />
-                                                            </Trigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <ComboBox
-                                                    BorderThickness="0"
-                                                    Background="Transparent"
-                                                    VerticalContentAlignment="Center"
-                                                    ItemsSource="{Binding UserCategories}"
-                                                    SelectedItem="{Binding SelectedFilterCategory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                    Style="{StaticResource DarkThemeComboBox}"
-                                                    ToolTip="Filtreeri loendit kasutajakategooria järgi" />
-                                            </Border>
-
-                                            <!--  Tag Filters (EL, EN, EA)  -->
-                                            <StackPanel
-                                                Grid.Column="2"
-                                                HorizontalAlignment="Left"
-                                                VerticalAlignment="Center"
-                                                Orientation="Horizontal"
-                                                Margin="20,0,0,0">
-                                                
-
-
-                                                <CheckBox
-                                                    Content="EL"
-                                                    FontSize="14"
-                                                    IsChecked="{Binding IsElChecked}"
-                                                    Margin="0,0,15,0"
-                                                    Style="{StaticResource CustomCheckBox}"
-                                                    ToolTip="Näita EL" />
-                                                <CheckBox
-                                                    Content="EN"
-                                                    FontSize="14"
-                                                    IsChecked="{Binding IsEnChecked}"
-                                                    Margin="0,0,15,0"
-                                                    Style="{StaticResource CustomCheckBox}" 
-                                                    ToolTip="Näita EN"/>
-                                                <CheckBox
-                                                    Content="EA"
-                                                    FontSize="14"
-                                                    IsChecked="{Binding IsEaChecked}"
-                                                    Style="{StaticResource CustomCheckBox}"
-                                                    ToolTip="Näita EA"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                
-                                                <!-- 3D / 2D / Tag segmented toggle -->
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                                                    <RadioButton
-                                                        Content="3D"
-                                                        GroupName="ViewModeGroup"
-                                                        IsChecked="{Binding ViewMode, Converter={StaticResource EqualityConverter}, ConverterParameter=3D}"
-                                                        Style="{StaticResource SegmentedRadioButton}"
-                                                        ToolTip="Näita 3D komponente" />
-                                                    <RadioButton
-                                                        Content="2D"
-                                                        Margin="4,0,0,0"
-                                                        GroupName="ViewModeGroup"
-                                                        IsChecked="{Binding ViewMode, Converter={StaticResource EqualityConverter}, ConverterParameter=2D}"
-                                                        Style="{StaticResource SegmentedRadioButton}"
-                                                        ToolTip="Näita 2D komponente" />
-                                                    <RadioButton
-                                                        Content="Tag"
-                                                        Margin="4,0,0,0"
-                                                        GroupName="ViewModeGroup"
-                                                        IsChecked="{Binding ViewMode, Converter={StaticResource EqualityConverter}, ConverterParameter=Tag}"
-                                                        Style="{StaticResource SegmentedRadioButton}"
-                                                        ToolTip="Näita ainult Tag komponente" />
-                                                </StackPanel>
-
-                                                <!--  Search bar  -->
-                                                <Border
-                                                    Width="150"
-                                                    Height="28"
-                                                    Margin="0,0,10,0"
-                                                    VerticalAlignment="Center"
-                                                    Background="{DynamicResource SecondaryBackgroundBrush}"
-                                                    BorderBrush="{DynamicResource BorderBrush}"
-                                                    BorderThickness="1"
-                                                    CornerRadius="8"
-                                                    Opacity="0.95">
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="28" />
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="28" />
-                                                        </Grid.ColumnDefinitions>
-
-                                                        <materialDesign:PackIcon
-                                                            Grid.Column="0"
-                                                            Width="16"
-                                                            Height="16"
-                                                            HorizontalAlignment="Center"
-                                                            VerticalAlignment="Center"
-                                                            Foreground="{DynamicResource IconBrush}"
-                                                            Kind="Magnify" />
-
-                                                        <TextBox
-                                                            x:Name="SearchTextBox"
-                                                            Grid.Column="1"
-                                                            Margin="0"
-                                                            VerticalContentAlignment="Center"
-                                                            Background="Transparent"
-                                                            BorderThickness="0"
-                                                            CaretBrush="{DynamicResource ForegroundBrush}"
-                                                            FontSize="14"
-                                                            Foreground="{DynamicResource ForegroundBrush}"
-                                                            Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                                            ToolTip="Otsi (nimi / kategooria / failitee / tüübid)" />
-
-                                                        <Button
-                                                            x:Name="ClearSearchButton"
-                                                            Grid.Column="2"
-                                                            Width="24"
-                                                            Height="24"
-                                                            Background="Transparent"
-                                                            BorderBrush="Transparent"
-                                                            Click="ClearSearchButton_Click"
-                                                            Style="{StaticResource FlatIconButton}"
-                                                            ToolTip="Puhasta otsing">
-                                                            <materialDesign:PackIcon
-                                                                Width="16"
-                                                                Height="16"
-                                                                HorizontalAlignment="Center"
-                                                                VerticalAlignment="Center"
-                                                                Foreground="{DynamicResource IconBrush}"
-                                                                Kind="CloseCircleOutline" />
-                                                        </Button>
-                                                    </Grid>
-                                                </Border>
-
-                                                <Button
-                                                    Width="32"
-                                                    Height="28"
-                                                    Command="{Binding RefreshCommand}"
-                                                    Style="{StaticResource FlatIconButton}"
-                                                    ToolTip="Lae indeks uuesti ja rakenda filtrid">
-
-                                                    <materialDesign:PackIcon
-                                                        Width="24"
-                                                        Height="24"
-                                                        Foreground="{DynamicResource IconBrush}"
-                                                        Kind="Refresh" />
-                                                </Button>
-                                            </StackPanel>
-
-                                        </Grid>
-                                    </Border>
-
-                                    <!--  List  -->
-                                    <Border
-                                        Grid.Row="1"
-                                        Padding="8"
-                                        Background="{DynamicResource SecondaryBackgroundBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="10">
-                                        <ListView
-                                            d:ItemsSource="{d:SampleData ItemCount=5}"
-                                            Background="Transparent"
-                                            BorderThickness="0"
-                                            ItemsSource="{Binding Items}"
-                                            PreviewMouseWheel="ListView_PreviewMouseWheel"
-                                            ScrollViewer.CanContentScroll="False"
-                                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                            ScrollViewer.IsDeferredScrollingEnabled="False"
-                                            ScrollViewer.PanningMode="Both"
-                                            ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                            SelectedItem="{Binding SelectedItem}"
-                                            SelectionChanged="LibraryList_SelectionChanged"
-                                            SelectionMode="Extended">
-
-
-                                            <ListView.ItemContainerStyle>
-                                                <Style TargetType="{x:Type ListViewItem}">
-                                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                                    <Setter Property="VerticalContentAlignment" Value="Stretch" />
-                                                    <Setter Property="Padding" Value="0" />
-                                                    <Setter Property="Background" Value="Transparent" />
-                                                    <Setter Property="BorderThickness" Value="0" />
-                                                    <Setter Property="Template">
-                                                        <Setter.Value>
-                                                            <ControlTemplate TargetType="{x:Type ListViewItem}">
-                                                                <Border
-                                                                    x:Name="ItemBorder"
-                                                                    Background="Transparent"
-                                                                    BorderThickness="0"
-                                                                    SnapsToDevicePixels="True">
-                                                                    <ContentPresenter />
-                                                                </Border>
-                                                                <ControlTemplate.Triggers>
-                                                                    <!-- Selection trigger -->
-                                                                    <Trigger Property="IsSelected" Value="True">
-                                                                        <Setter TargetName="ItemBorder" Property="Background" Value="Transparent" />
-                                                                    </Trigger>
-                                                                    <!-- Hover trigger -->
-                                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="ItemBorder" Property="Background" Value="Transparent" />
-                                                                    </Trigger>
-                                                                </ControlTemplate.Triggers>
-                                                            </ControlTemplate>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Style>
-                                            </ListView.ItemContainerStyle>
-                                            <ListView.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border
-                                                        x:Name="CardBorder"
-                                                        Margin="0,0,0,5"
-                                                        Padding="10"
-                                                        Background="{DynamicResource PrimaryBackgroundBrush}"
-                                                        BorderBrush="{DynamicResource PrimaryBackgroundBrush}"
-                                                        BorderThickness="2"
-                                                        CornerRadius="10"
-                                                        Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
-                                                        
-                                                        <Border.Style>
-                                                            <Style TargetType="Border">
-                                                                <Style.Triggers>
-                                                                    <!-- Hover trigger - only when not selected -->
-                                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter Property="BorderBrush" Value="#3A3F4B" />
-                                                                    </Trigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Border.Style>
-                                                        
-                                                        <Border.ContextMenu>
-                                                            <ContextMenu 
-                                                                Style="{StaticResource DarkContextMenu}"
-                                                                ItemsSource="{Binding PlacementTarget.Tag.AllUserCategories, RelativeSource={RelativeSource Self}}">
-                                                                <ContextMenu.ItemContainerStyle>
-                                                                    <Style TargetType="MenuItem" BasedOn="{StaticResource DarkMenuItem}">
-                                                                        <Setter Property="Header" Value="{Binding}" />
-                                                                        <Setter Property="IsChecked">
-                                                                            <Setter.Value>
-                                                                                <MultiBinding Converter="{StaticResource IsCategoryAssignedConverter}">
-                                                                                     <Binding RelativeSource="{RelativeSource AncestorType=ContextMenu}" Path="PlacementTarget.DataContext" />
-                                                                                     <Binding Path="." />
-                                                                                </MultiBinding>
-                                                                            </Setter.Value>
-                                                                        </Setter>
-
-                                                                        <Setter Property="Command" Value="{Binding PlacementTarget.Tag.ToggleCategoryCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                                                        <Setter Property="CommandParameter">
-                                                                            <Setter.Value>
-                                                                                <MultiBinding Converter="{StaticResource TupleConverter}">
-                                                                                    <Binding RelativeSource="{RelativeSource AncestorType=ContextMenu}" Path="PlacementTarget.DataContext" />
-                                                                                    <Binding Path="." />
-                                                                                </MultiBinding>
-                                                                            </Setter.Value>
-                                                                        </Setter>
-                                                                    </Style>
-                                                                </ContextMenu.ItemContainerStyle>
-                                                            </ContextMenu>
-                                                        </Border.ContextMenu>
-
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="110" />
-                                                                <ColumnDefinition Width="*" />
-                                                                <ColumnDefinition Width="Auto" />
-                                                            </Grid.ColumnDefinitions>
-
-
-                                                                <Grid Width="100" Height="100">
-                                                                    <!--  thumbnail container  -->
-                                                                    <Border
-                                                                        x:Name="ThumbHost"
-                                                                        Background="{DynamicResource SecondaryBackgroundBrush}"
-                                                                        BorderBrush="{DynamicResource BorderBrush}"
-                                                                        BorderThickness="1"
-                                                                        CornerRadius="8">
-
-                                                                        <Grid>
-                                                                            <Image Source="{Binding CurrentThumbnailPath, Converter={StaticResource PathToImageConverter}}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
-
-                                                                            <!--  Prev  -->
-                                                                            <Button
-                                                                                Width="26"
-                                                                                Height="26"
-                                                                                Margin="6,0,0,0"
-                                                                                HorizontalAlignment="Left"
-                                                                                VerticalAlignment="Center"
-                                                                                Click="PrevThumb_Click"
-                                                                                Style="{StaticResource FlatIconButton}">
-                                                                                <Button.Visibility>
-                                                                                    <MultiBinding Converter="{StaticResource HoverAndMultiThumbsToVisibilityConverter}">
-                                                                                        <Binding ElementName="ThumbHost" Path="IsMouseOver" />
-                                                                                        <Binding Path="HasMultipleThumbnails" />
-                                                                                    </MultiBinding>
-                                                                                </Button.Visibility>
-                                                                                <materialDesign:PackIcon
-                                                                                    Width="18"
-                                                                                    Height="18"
-                                                                                    Kind="ChevronLeft" />
-                                                                            </Button>
-
-                                                                            <!--  Next  -->
-                                                                            <Button
-                                                                                Width="26"
-                                                                                Height="26"
-                                                                                Margin="0,0,6,0"
-                                                                                HorizontalAlignment="Right"
-                                                                                VerticalAlignment="Center"
-                                                                                Click="NextThumb_Click"
-                                                                                Style="{StaticResource FlatIconButton}">
-                                                                                <Button.Visibility>
-                                                                                    <MultiBinding Converter="{StaticResource HoverAndMultiThumbsToVisibilityConverter}">
-                                                                                        <Binding ElementName="ThumbHost" Path="IsMouseOver" />
-                                                                                        <Binding Path="HasMultipleThumbnails" />
-                                                                                    </MultiBinding>
-                                                                                </Button.Visibility>
-                                                                                <materialDesign:PackIcon
-                                                                                    Width="18"
-                                                                                    Height="18"
-                                                                                    Kind="ChevronRight" />
-                                                                            </Button>
-
-                                                                            <!--  Counter  -->
-                                                                            <Border
-                                                                                Margin="0,0,0,6"
-                                                                                Padding="6,2"
-                                                                                HorizontalAlignment="Center"
-                                                                                VerticalAlignment="Bottom"
-                                                                                Background="#66000000"
-                                                                                CornerRadius="10">
-                                                                                <Border.Visibility>
-                                                                                    <MultiBinding Converter="{StaticResource HoverAndMultiThumbsToVisibilityConverter}">
-                                                                                        <Binding ElementName="ThumbHost" Path="IsMouseOver" />
-                                                                                        <Binding Path="HasMultipleThumbnails" />
-                                                                                    </MultiBinding>
-                                                                                </Border.Visibility>
-
-                                                                                <TextBlock FontSize="11" Foreground="White">
-                                                                                    <TextBlock.Text>
-                                                                                        <MultiBinding StringFormat="{}{0}/{1}">
-                                                                                            <Binding Converter="{StaticResource PlusOneConverter}" Path="SelectedThumbnailIndex" />
-                                                                                            <Binding Path="TypeThumbnailPaths.Count" />
-                                                                                        </MultiBinding>
-                                                                                    </TextBlock.Text>
-                                                                                </TextBlock>
-                                                                            </Border>
-
-                                                                        </Grid>
-                                                                    </Border>
-                                                                </Grid>
-
-
-
-
-
-                                                            <!--  Info  -->
-                                                            <StackPanel Grid.Column="1" Margin="12,0,12,0">
-                                                                <TextBlock
-                                                                    FontSize="15"
-                                                                    FontWeight="Bold"
-                                                                    Foreground="{DynamicResource ForegroundBrush}"
-                                                                    Text="{Binding DisplayName}" />
-
-                                                                <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
-                                                                    <TextBlock
-                                                                        Foreground="{DynamicResource ForegroundBrush}"
-                                                                        Opacity="0.80"
-                                                                        Text="{Binding Category}" />
-                                                                    <TextBlock
-                                                                        Foreground="{DynamicResource ForegroundBrush}"
-                                                                        Opacity="0.40"
-                                                                        Text="  |  " />
-                                                                    <TextBlock
-                                                                        Foreground="{DynamicResource ForegroundBrush}"
-                                                                        Opacity="0.70"
-                                                                        Text="{Binding RelativePath}" />
-
-                                                                </StackPanel>
-                                                                <StackPanel Margin="0,5,0,0" Orientation="Horizontal">
-                                                                    <TextBlock
-                                                                        Foreground="{DynamicResource ForegroundBrush}"
-                                                                        Opacity="0.70"
-                                                                        Text="Revit: " />
-                                                                    <TextBlock
-                                                                        Foreground="{DynamicResource ForegroundBrush}"
-                                                                        Opacity="0.85"
-                                                                        Text="{Binding SavedInRevitVersion}" />
-                                                                    <TextBlock
-                                                                        Foreground="{DynamicResource ForegroundBrush}"
-                                                                        Opacity="0.40"
-                                                                        Text="  |  " />
-                                                                    <TextBlock
-                                                                        Foreground="{DynamicResource ForegroundBrush}"
-                                                                        Opacity="0.70"
-                                                                        Text="Muudetud: " />
-                                                                    <TextBlock
-                                                                        Foreground="{DynamicResource ForegroundBrush}"
-                                                                        Opacity="0.85"
-                                                                        Text="{Binding LastModifiedLocal}" />
-                                                                </StackPanel>
-
-                                                                <TextBlock
-                                                                    Margin="0,8,0,0"
-                                                                    Foreground="{DynamicResource ForegroundBrush}"
-                                                                    Opacity="0.85"
-                                                                    Text="{Binding TypeNames, Converter={StaticResource TypeListConverter}}"
-                                                                    TextWrapping="Wrap" />
-                                                            </StackPanel>
-
-                                                            <!--  User categories (multi) -> Tags  -->
-                                                            <StackPanel Grid.Column="2" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,5,0">
-                                                                <!--  Warning triangle  -->
-                                                                <materialDesign:PackIcon
-                                                                    Width="18"
-                                                                    Height="18"
-                                                                    Margin="0,0,0,6"
-                                                                    HorizontalAlignment="Right"
-                                                                    VerticalAlignment="Top"
-                                                                    Foreground="#FFC107"
-                                                                    Kind="AlertCircleOutline"
-                                                                    Visibility="{Binding IsLoadedInProject, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                                                    ToolTip="Laetud projekti" />
-                                                                    
-                                                                <ItemsControl ItemsSource="{Binding UserCategories}" Margin="0,5,0,0">
-                                                                    <ItemsControl.ItemsPanel>
-                                                                        <ItemsPanelTemplate>
-                                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" />
-                                                                        </ItemsPanelTemplate>
-                                                                    </ItemsControl.ItemsPanel>
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate>
-                                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,6,0">
-                                                                                <materialDesign:PackIcon Kind="TagOutline" Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource IconBrush}"/>
-                                                                                <TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource ForegroundBrush}" VerticalAlignment="Center" />
-                                                                            </StackPanel>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl>
-                                                            </StackPanel>
-                                                        </Grid>
-                                                        
-                                                        <Border.Triggers>
-                                                            <EventTrigger RoutedEvent="Border.Loaded" />
-                                                        </Border.Triggers>
-                                                    </Border>
-                                                    
-                                                    <DataTemplate.Triggers>
-                                                        <!-- Selection trigger -->
-                                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
-                                                            <Setter TargetName="CardBorder" Property="BorderBrush" Value="#4A5568" />
-                                                        </DataTrigger>
-                                                    </DataTemplate.Triggers>
-                                                </DataTemplate>
-                                            </ListView.ItemTemplate>
-                                        </ListView>
-                                    </Border>
-
-                                    <!--  Bottom bar  -->
-                                    <Border
-                                        Grid.Row="2"
-                                        Margin="0,10,0,0"
-                                        Padding="5"
-                                        Background="{DynamicResource SecondaryBackgroundBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="10">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <CheckBox
-                                                Grid.Column="0"
-                                                VerticalAlignment="Center"
-                                                Content="Pärast laadimist aktiveeri paigutus"
-                                                IsChecked="{Binding PlaceAfterLoading}"
-                                                Style="{StaticResource CustomCheckBox}" />
-
-                                            <Button
-                                                Grid.Column="1"
-                                                Width="180"
-                                                Height="40"
-                                                Margin="0"
-                                                Command="{Binding LoadSelectedCommand}"
-                                                Content="Laadi valitud"
-                                                FontSize="16"
-                                                FontWeight="Bold"
-                                                Style="{StaticResource CustomActionButtonStyle}" />
-                                        </Grid>
-                                    </Border>
-                                </Grid>
-                            </TabItem>
-
-                            <!--  =====================  -->
-                            <!--  SEADED  -->
-                            <!--  =====================  -->
-                            <TabItem Header="Seaded">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="*" />
-                                    </Grid.RowDefinitions>
-
-                                    <!--  Library root  -->
-                                    <Border
-                                        Grid.Row="0"
-                                        Margin="0,0,0,10"
-                                        Padding="10">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="Background" Value="{DynamicResource SecondaryBackgroundBrush}" />
-                                                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-                                                <Setter Property="BorderThickness" Value="1" />
-                                                <Setter Property="CornerRadius" Value="10,10,10,10" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding ElementName=KoguTab, Path=IsMouseOver}" Value="True">
-                                                        <Setter Property="CornerRadius" Value="0,10,10,10" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="120" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <TextBox
-                                                Grid.Column="0"
-                                                Height="28"
-                                                VerticalContentAlignment="Center"
-                                                Style="{StaticResource CustomTextBoxStyle}"
-                                                Text="{Binding LibraryRoot}"
-                                                ToolTip="Teegi juurkaust" />
-
-                                            <Button
-                                                Grid.Column="1"
-                                                Width="100"
-                                                Height="28"
-                                                Margin="10,0,0,0"
-                                                Command="{Binding BrowseLibraryRootCommand}"
-                                                Content="Sirvi"
-                                                Style="{StaticResource CustomActionButtonStyle}" />
-                                        </Grid>
-                                    </Border>
-
-                                    <!--  Thumbnail + index actions  -->
-                                    <Border
-                                        Grid.Row="1"
-                                        Margin="0,0,0,10"
-                                        Padding="10"
-                                        Background="{DynamicResource SecondaryBackgroundBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="10">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="240" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <TextBox
-                                                Grid.Column="0"
-                                                Height="28"
-                                                VerticalContentAlignment="Center"
-                                                Style="{StaticResource CustomTextBoxStyle}"
-                                                Text="{Binding ThumbnailPixelSize}"
-                                                ToolTip="Pisipildi suurus pikslites" />
-
-                                            <StackPanel
-                                                Grid.Column="1"
-                                                HorizontalAlignment="Right"
-                                                VerticalAlignment="Center"
-                                                Orientation="Horizontal">
-                                                <Button
-                                                    Width="180"
-                                                    Height="34"
-                                                    Margin="0,0,10,0"
-                                                    Command="{Binding BuildIndexCommand}"
-                                                    Content="Koosta indeks"
-                                                    Style="{StaticResource CustomActionButtonStyle}" />
-                                                <Button
-                                                    Width="260"
-                                                    Height="34"
-                                                    Margin="0,0,0,0"
-                                                    Command="{Binding GenerateThumbsAndIndexCommand}"
-                                                    Content="Genereeri pisipildid + indeks"
-                                                    Style="{StaticResource CustomActionButtonStyle}" />
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-
-                                    <!--  User categories manager  -->
-                                    <Grid Grid.Row="2">
+                <!--  List surface (opaque: rows never sit on a translucent layer)  -->
+                <Border
+                    Grid.Row="1"
+                    Style="{StaticResource Surface}">
+                    <Grid>
+                        <ListView
+                            x:Name="LibraryList"
+                            Padding="4"
+                            d:ItemsSource="{d:SampleData ItemCount=5}"
+                            AutomationProperties.Name="Perekonnad"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            ItemContainerStyle="{StaticResource LibraryRow}"
+                            ItemsSource="{Binding Items}"
+                            KeyDown="LibraryList_KeyDown"
+                            MouseDoubleClick="LibraryList_MouseDoubleClick"
+                            PreviewMouseWheel="ListView_PreviewMouseWheel"
+                            ScrollViewer.CanContentScroll="False"
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                            ScrollViewer.PanningMode="VerticalOnly"
+                            ScrollViewer.VerticalScrollBarVisibility="Auto"
+                            SelectedItem="{Binding SelectedItem}"
+                            SelectionChanged="LibraryList_SelectionChanged"
+                            SelectionMode="Extended"
+                            Visibility="{Binding ShowList, Converter={StaticResource BoolToVis}}">
+                            <ListView.Template>
+                                <ControlTemplate TargetType="{x:Type ListView}">
+                                    <ScrollViewer
+                                        Padding="{TemplateBinding Padding}"
+                                        Focusable="False"
+                                        HorizontalScrollBarVisibility="Disabled"
+                                        PanningMode="VerticalOnly"
+                                        VerticalScrollBarVisibility="Auto">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </ControlTemplate>
+                            </ListView.Template>
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid
+                                        x:Name="RowRoot"
+                                        Background="Transparent"
+                                        Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="300" />
+                                            <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
+                                        <!--  Right-click: assign categories (applies to the whole selection)  -->
+                                        <Grid.ContextMenu>
+                                            <ContextMenu ItemsSource="{Binding PlacementTarget.Tag.AllUserCategories, RelativeSource={RelativeSource Self}}">
+                                                <ContextMenu.ItemContainerStyle>
+                                                    <Style BasedOn="{StaticResource {x:Type MenuItem}}" TargetType="{x:Type MenuItem}">
+                                                        <Setter Property="Header" Value="{Binding}" />
+                                                        <Setter Property="IsChecked">
+                                                            <Setter.Value>
+                                                                <MultiBinding Converter="{StaticResource IsCategoryAssignedConverter}" Mode="OneWay">
+                                                                    <Binding Path="PlacementTarget.DataContext" RelativeSource="{RelativeSource AncestorType=ContextMenu}" />
+                                                                    <Binding Path="." />
+                                                                </MultiBinding>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                        <Setter Property="Command" Value="{Binding PlacementTarget.Tag.ToggleCategoryCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                        <Setter Property="CommandParameter">
+                                                            <Setter.Value>
+                                                                <MultiBinding Converter="{StaticResource TupleConverter}">
+                                                                    <Binding Path="PlacementTarget.DataContext" RelativeSource="{RelativeSource AncestorType=ContextMenu}" />
+                                                                    <Binding Path="." />
+                                                                </MultiBinding>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ContextMenu.ItemContainerStyle>
+                                            </ContextMenu>
+                                        </Grid.ContextMenu>
+
+                                        <!--  Thumbnail with per-type gallery (arrows appear on hover)  -->
                                         <Border
-                                            Grid.Column="0"
-                                            Padding="10"
-                                            Background="{DynamicResource SecondaryBackgroundBrush}"
-                                            BorderBrush="{DynamicResource BorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="10">
-
-                                            <StackPanel>
-                                                <TextBlock
-                                                    Margin="0,0,0,10"
-                                                    FontSize="16"
-                                                    FontWeight="Bold"
-                                                    Foreground="{DynamicResource ForegroundBrush}"
-                                                    Text="Kasutajakategooriad" />
-
-                                                <DockPanel Margin="0,0,0,10">
-                                                    <Button
-                                                        DockPanel.Dock="Right"
-                                                        Width="80"
-                                                        Height="28"
-                                                        Margin="10,0,0,0"
-                                                        Command="{Binding AddUserCategoryCommand}"
-                                                        Content="Lisa"
-                                                        Style="{StaticResource CustomActionButtonStyle}" />
-                                                    <TextBox
-                                                        Height="28"
-                                                        VerticalContentAlignment="Center"
-                                                        Style="{StaticResource CustomTextBoxStyle}"
-                                                        Text="{Binding NewUserCategory, UpdateSourceTrigger=PropertyChanged}"
-                                                        ToolTip="Lisa uus kategooria" />
-                                                </DockPanel>
-
-                                                <ListBox
-                                                    Height="260"
-                                                    Background="{DynamicResource PrimaryBackgroundBrush}"
-                                                    BorderBrush="{DynamicResource BorderBrush}"
-                                                    BorderThickness="1"
-                                                    Foreground="{DynamicResource ForegroundBrush}"
-                                                    ItemsSource="{Binding UserCategories}"
-                                                    SelectedItem="{Binding SelectedUserCategory, Mode=TwoWay}" />
+                                            x:Name="ThumbHost"
+                                            Width="84"
+                                            Height="84"
+                                            VerticalAlignment="Top"
+                                            Background="{DynamicResource Thumb.Background}"
+                                            CornerRadius="{StaticResource Radius.Inset}">
+                                            <Grid>
+                                                <materialDesign:PackIcon
+                                                    Width="28"
+                                                    Height="28"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    Foreground="{DynamicResource Text.Disabled}"
+                                                    Kind="CubeOutline"
+                                                    ToolTip="Pisipilt puudub"
+                                                    Visibility="{Binding CurrentThumbnailPath, Converter={StaticResource EmptyToVis}}" />
+                                                <Image
+                                                    Margin="4"
+                                                    RenderOptions.BitmapScalingMode="HighQuality"
+                                                    Source="{Binding CurrentThumbnailPath, Converter={StaticResource PathToImageConverter}}"
+                                                    Stretch="Uniform" />
 
                                                 <Button
-                                                    Height="32"
-                                                    Margin="0,10,0,0"
-                                                    Command="{Binding RemoveUserCategoryCommand}"
-                                                    Content="Eemalda valitud"
-                                                    Style="{StaticResource CustomActionButtonStyle}" />
-                                            </StackPanel>
+                                                    Margin="3,0,0,0"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Center"
+                                                    AutomationProperties.Name="Eelmine tüüp"
+                                                    Click="PrevThumb_Click"
+                                                    IsEnabled="{Binding CanPrevThumbnail}"
+                                                    Style="{StaticResource Button.ThumbNav}"
+                                                    ToolTip="Eelmine tüüp">
+                                                    <Button.Visibility>
+                                                        <MultiBinding Converter="{StaticResource HoverAndMultiThumbsToVisibilityConverter}">
+                                                            <Binding ElementName="ThumbHost" Path="IsMouseOver" />
+                                                            <Binding Path="HasMultipleThumbnails" />
+                                                        </MultiBinding>
+                                                    </Button.Visibility>
+                                                    <materialDesign:PackIcon
+                                                        Width="14"
+                                                        Height="14"
+                                                        Kind="ChevronLeft" />
+                                                </Button>
+                                                <Button
+                                                    Margin="0,0,3,0"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Center"
+                                                    AutomationProperties.Name="Järgmine tüüp"
+                                                    Click="NextThumb_Click"
+                                                    IsEnabled="{Binding CanNextThumbnail}"
+                                                    Style="{StaticResource Button.ThumbNav}"
+                                                    ToolTip="Järgmine tüüp">
+                                                    <Button.Visibility>
+                                                        <MultiBinding Converter="{StaticResource HoverAndMultiThumbsToVisibilityConverter}">
+                                                            <Binding ElementName="ThumbHost" Path="IsMouseOver" />
+                                                            <Binding Path="HasMultipleThumbnails" />
+                                                        </MultiBinding>
+                                                    </Button.Visibility>
+                                                    <materialDesign:PackIcon
+                                                        Width="14"
+                                                        Height="14"
+                                                        Kind="ChevronRight" />
+                                                </Button>
+
+                                                <!--  Position in the gallery  -->
+                                                <Border
+                                                    Margin="0,0,0,4"
+                                                    Padding="6,0"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Bottom"
+                                                    Background="{DynamicResource Floating.Material}"
+                                                    BorderBrush="{DynamicResource Floating.Edge}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="8">
+                                                    <Border.Visibility>
+                                                        <MultiBinding Converter="{StaticResource HoverAndMultiThumbsToVisibilityConverter}">
+                                                            <Binding ElementName="ThumbHost" Path="IsMouseOver" />
+                                                            <Binding Path="HasMultipleThumbnails" />
+                                                        </MultiBinding>
+                                                    </Border.Visibility>
+                                                    <TextBlock FontSize="{StaticResource FontSize.Caption}" Foreground="{DynamicResource Text.Secondary}">
+                                                        <TextBlock.Text>
+                                                            <MultiBinding StringFormat="{}{0} / {1}">
+                                                                <Binding Converter="{StaticResource PlusOneConverter}" Path="SelectedThumbnailIndex" />
+                                                                <Binding Path="TypeThumbnailPaths.Count" />
+                                                            </MultiBinding>
+                                                        </TextBlock.Text>
+                                                    </TextBlock>
+                                                </Border>
+                                            </Grid>
                                         </Border>
 
-                                        <Border
+                                        <!--  Name, where it lives, then the quieter facts  -->
+                                        <StackPanel
                                             Grid.Column="1"
-                                            Margin="10,0,0,0"
-                                            Padding="10"
-                                            Background="{DynamicResource SecondaryBackgroundBrush}"
-                                            BorderBrush="{DynamicResource BorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="10">
-                                            <StackPanel>
-                                                <TextBlock
-                                                    Margin="0,0,0,10"
-                                                    FontSize="16"
-                                                    FontWeight="Bold"
-                                                    Foreground="{DynamicResource ForegroundBrush}"
-                                                    Text="Märkused" />
+                                            Margin="14,2,12,0"
+                                            VerticalAlignment="Top">
+                                            <TextBlock
+                                                FontSize="{StaticResource FontSize.Emphasis}"
+                                                FontWeight="SemiBold"
+                                                Foreground="{DynamicResource Text.Primary}"
+                                                Text="{Binding DisplayName}"
+                                                TextTrimming="CharacterEllipsis"
+                                                ToolTip="{Binding DisplayName}" />
+                                            <TextBlock
+                                                Margin="0,3,0,0"
+                                                FontSize="{StaticResource FontSize.Secondary}"
+                                                Foreground="{DynamicResource Text.Secondary}"
+                                                TextTrimming="CharacterEllipsis"
+                                                ToolTip="{Binding RelativePath}">
+                                                <Run Text="{Binding Category, Mode=OneWay}" /><Run Foreground="{DynamicResource Text.Tertiary}" Text="  ·  " /><Run Text="{Binding RelativePath, Mode=OneWay}" />
+                                            </TextBlock>
+                                            <TextBlock
+                                                Margin="0,6,0,0"
+                                                FontSize="{StaticResource FontSize.Secondary}"
+                                                Foreground="{DynamicResource Text.Secondary}"
+                                                MaxHeight="32"
+                                                Text="{Binding TypeNames, Converter={StaticResource TypeListConverter}}"
+                                                TextTrimming="CharacterEllipsis"
+                                                TextWrapping="Wrap"
+                                                ToolTip="{Binding TypeNames, Converter={StaticResource TypeListConverter}}" />
+                                            <TextBlock
+                                                Margin="0,6,0,0"
+                                                FontSize="{StaticResource FontSize.Caption}"
+                                                Foreground="{DynamicResource Text.Tertiary}"
+                                                TextTrimming="CharacterEllipsis">
+                                                <Run Text="Revit" /> <Run Text="{Binding SavedInRevitVersion, Mode=OneWay}" /><Run Text="  ·  muudetud " /><Run Text="{Binding LastModifiedLocal, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </StackPanel>
 
-                                                <TextBlock
-                                                    Foreground="{DynamicResource ForegroundBrush}"
-                                                    Opacity="0.85"
-                                                    Text="Kasutajakategooriad salvestatakse faili settings.json. Iga perekonna real saab valida mitu kategooriat ning need salvestatakse index.json faili."
-                                                    TextWrapping="Wrap" />
-
-                                                <TextBlock
-                                                    Margin="0,10,0,0"
-                                                    Foreground="{DynamicResource ForegroundBrush}"
-                                                    Opacity="0.75"
-                                                    Text="Soovitus: hoia kategooriate nimekiri lühike ja ühtses vormis (nt “Valgustid”, “Pistikupesad”, “Kaablirennid”)."
-                                                    TextWrapping="Wrap" />
-                                            </StackPanel>
-                                        </Border>
+                                        <!--  State and tags  -->
+                                        <StackPanel
+                                            Grid.Column="2"
+                                            MaxWidth="200"
+                                            Margin="0,2,2,0"
+                                            VerticalAlignment="Top">
+                                            <Border
+                                                Margin="0,0,0,6"
+                                                HorizontalAlignment="Right"
+                                                Style="{StaticResource Badge.Ok}"
+                                                ToolTip="See perekond on juba projekti laaditud"
+                                                Visibility="{Binding IsLoadedInProject, Converter={StaticResource BoolToVis}}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <materialDesign:PackIcon
+                                                        Width="11"
+                                                        Height="11"
+                                                        Margin="0,0,4,0"
+                                                        VerticalAlignment="Center"
+                                                        Kind="Check" />
+                                                    <TextBlock Text="Projektis" />
+                                                </StackPanel>
+                                            </Border>
+                                            <ItemsControl
+                                                HorizontalAlignment="Right"
+                                                Focusable="False"
+                                                ItemsSource="{Binding UserCategories}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel HorizontalAlignment="Right" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border
+                                                            Margin="4,0,0,4"
+                                                            Style="{StaticResource Badge}">
+                                                            <TextBlock Text="{Binding}" />
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
                                     </Grid>
-                                </Grid>
-                            </TabItem>
-                        </TabControl>
-                    </Border>
-                </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+
+                        <!--  Empty states say what to do next  -->
+                        <StackPanel Style="{StaticResource EmptyState}" Visibility="{Binding ShowNoRoot, Converter={StaticResource BoolToVis}}">
+                            <materialDesign:PackIcon Kind="FolderSearchOutline" Style="{StaticResource EmptyGlyph}" />
+                            <TextBlock Style="{StaticResource EmptyTitle}" Text="Teegi kaust on valimata" />
+                            <TextBlock Style="{StaticResource EmptyText}" Text="Vali kaust, milles perekonnad asuvad. Seda saab hiljem muuta seadetes." />
+                            <Button
+                                HorizontalAlignment="Center"
+                                Command="{Binding BrowseLibraryRootCommand}"
+                                Content="Vali kaust…"
+                                Style="{StaticResource Button.Primary}" />
+                        </StackPanel>
+
+                        <StackPanel Style="{StaticResource EmptyState}" Visibility="{Binding ShowNoIndex, Converter={StaticResource BoolToVis}}">
+                            <materialDesign:PackIcon Kind="DatabaseOffOutline" Style="{StaticResource EmptyGlyph}" />
+                            <TextBlock Style="{StaticResource EmptyTitle}" Text="Indeksit pole veel" />
+                            <TextBlock Style="{StaticResource EmptyText}" Text="Koosta indeks, et kausta perekonnad siia ilmuksid. Pisipildid saab genereerida seadetes." />
+                            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                <Button
+                                    Margin="0,0,8,0"
+                                    Command="{Binding ShowSettingsCommand}"
+                                    Content="Ava seaded"
+                                    Style="{StaticResource Button.Secondary}" />
+                                <Button
+                                    Command="{Binding BuildIndexCommand}"
+                                    Content="Koosta indeks"
+                                    IsEnabled="{Binding IsBusy, Converter={x:Static local:NotConverter.Instance}}"
+                                    Style="{StaticResource Button.Primary}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Style="{StaticResource EmptyState}" Visibility="{Binding ShowNoMatches, Converter={StaticResource BoolToVis}}">
+                            <materialDesign:PackIcon Kind="Magnify" Style="{StaticResource EmptyGlyph}" />
+                            <TextBlock Style="{StaticResource EmptyTitle}" Text="Sobivaid perekondi pole" />
+                            <TextBlock Style="{StaticResource EmptyText}" Text="Otsingule, filtritele või valitud vaatele ei vasta ükski perekond." />
+                            <Button
+                                HorizontalAlignment="Center"
+                                Command="{Binding ClearFiltersCommand}"
+                                Content="Tühjenda otsing ja filtrid"
+                                Style="{StaticResource Button.Secondary}"
+                                Visibility="{Binding IsFiltered, Converter={StaticResource BoolToVis}}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!--  Floating action bar: scope first, then the one action it leads to  -->
+                <Border
+                    Grid.Row="2"
+                    MinHeight="52"
+                    Margin="0,12,0,0"
+                    Padding="14,8,10,8"
+                    Style="{StaticResource Floating}">
+                    <DockPanel LastChildFill="True">
+                        <StackPanel
+                            DockPanel.Dock="Right"
+                            Orientation="Horizontal">
+                            <CheckBox
+                                Margin="0,0,16,0"
+                                Content="Paiguta pärast laadimist"
+                                IsChecked="{Binding PlaceAfterLoading}"
+                                Style="{StaticResource Input.Check}"
+                                ToolTip="Pärast laadimist alusta kohe paigutamist" />
+                            <Button
+                                x:Name="LoadButton"
+                                MinWidth="140"
+                                Command="{Binding LoadSelectedCommand}"
+                                Content="{Binding LoadButtonText}"
+                                IsEnabled="{Binding HasSelection}"
+                                Style="{StaticResource Button.Primary}"
+                                ToolTip="Laadi valitud perekonnad projekti (Enter)" />
+                        </StackPanel>
+
+                        <Grid VerticalAlignment="Center">
+                            <!--  Nothing selected: a hint, not a row of disabled buttons  -->
+                            <DockPanel Margin="0,0,12,0" Visibility="{Binding HasSelection, Converter={StaticResource InverseBoolToVis}}">
+                                <materialDesign:PackIcon
+                                    Width="16"
+                                    Height="16"
+                                    Margin="0,0,8,0"
+                                    VerticalAlignment="Center"
+                                    Foreground="{DynamicResource Text.Tertiary}"
+                                    Kind="CursorDefaultClickOutline" />
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    Foreground="{DynamicResource Text.Secondary}"
+                                    Text="Vali perekond. Topeltklõps laadib kohe, paremklõps määrab kategooriad."
+                                    TextTrimming="CharacterEllipsis"
+                                    ToolTip="Vali perekond. Topeltklõps laadib kohe, paremklõps määrab kategooriad." />
+                            </DockPanel>
+                            <StackPanel
+                                local:Motion.FromY="4"
+                                local:Motion.Reveal="True"
+                                Orientation="Horizontal"
+                                Visibility="{Binding HasSelection, Converter={StaticResource BoolToVis}}">
+                                <materialDesign:PackIcon
+                                    Width="16"
+                                    Height="16"
+                                    Margin="0,0,8,0"
+                                    VerticalAlignment="Center"
+                                    Foreground="{DynamicResource Accent.Text}"
+                                    Kind="CheckboxMultipleMarkedOutline" />
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontWeight="SemiBold"
+                                    Text="{Binding SelectionText}" />
+                                <Button
+                                    Height="28"
+                                    Margin="6,0,0,0"
+                                    Click="ClearSelection_Click"
+                                    Content="Tühista"
+                                    Style="{StaticResource Button.Plain}"
+                                    ToolTip="Tühista valik (Esc)" />
+                            </StackPanel>
+                        </Grid>
+                    </DockPanel>
+                </Border>
             </Grid>
-        </Border>
 
-        <!--  Resize edges (same pattern you use)  -->
-        <Border
-            x:Name="LeftEdge"
-            Width="5"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Stretch"
-            Background="Transparent"
-            Cursor="SizeWE"
-            MouseEnter="LeftEdge_MouseEnter"
-            MouseLeave="Edge_MouseLeave"
-            MouseLeftButtonDown="LeftEdge_MouseLeftButtonDown" />
+            <!--  ================================ Settings page ================================  -->
+            <ScrollViewer
+                x:Name="SettingsPage"
+                Grid.Row="1"
+                Focusable="False"
+                HorizontalScrollBarVisibility="Disabled"
+                VerticalScrollBarVisibility="Auto"
+                Visibility="{Binding IsSettingsPage, Converter={StaticResource BoolToVis}}">
+                <StackPanel
+                    MaxWidth="760"
+                    Margin="24,4,24,24"
+                    HorizontalAlignment="Left"
+                    local:Motion.Reveal="True">
 
-        <Border
-            x:Name="RightEdge"
-            Width="9"
-            HorizontalAlignment="Right"
-            VerticalAlignment="Stretch"
-            Background="Transparent"
-            Cursor="SizeWE"
-            MouseEnter="RightEdge_MouseEnter"
-            MouseLeave="Edge_MouseLeave"
-            MouseLeftButtonDown="RightEdge_MouseLeftButtonDown" />
+                    <!--  Library  -->
+                    <TextBlock Style="{StaticResource Type.Group}" Text="Teek" />
+                    <Border Margin="0,0,0,24" Style="{StaticResource Card}">
+                        <Border BorderThickness="0" Style="{StaticResource SettingRow}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.ColumnSpan="2" Margin="0,0,0,8">
+                                    <TextBlock Style="{StaticResource SettingLabel}" Text="Teegi kaust" />
+                                    <TextBlock Style="{StaticResource SettingHint}" Text="Kaust, milles on Families, Thumbs ja index.json. Muudatus rakendub, kui väljast lahkud." />
+                                </StackPanel>
+                                <TextBox
+                                    Grid.Row="1"
+                                    AutomationProperties.Name="Teegi kaust"
+                                    Style="{StaticResource Input.Text}"
+                                    Tag="C:\Teek"
+                                    Text="{Binding LibraryRoot}" />
+                                <Button
+                                    Grid.Row="1"
+                                    Grid.Column="1"
+                                    Margin="8,0,0,0"
+                                    Command="{Binding BrowseLibraryRootCommand}"
+                                    Content="Sirvi…"
+                                    Style="{StaticResource Button.Secondary}" />
+                            </Grid>
+                        </Border>
+                    </Border>
 
-        <Border
-            x:Name="BottomEdge"
-            Height="5"
-            HorizontalAlignment="Stretch"
-            VerticalAlignment="Bottom"
-            Background="Transparent"
-            Cursor="SizeNS"
-            MouseEnter="BottomEdge_MouseEnter"
-            MouseLeave="Edge_MouseLeave"
-            MouseLeftButtonDown="BottomEdge_MouseLeftButtonDown" />
+                    <!--  Index and thumbnails  -->
+                    <TextBlock Style="{StaticResource Type.Group}" Text="Indeks ja pisipildid" />
+                    <Border Margin="0,0,0,24" Style="{StaticResource Card}">
+                        <StackPanel>
+                            <Border Style="{StaticResource SettingRow}">
+                                <DockPanel>
+                                    <TextBox
+                                        Width="96"
+                                        AutomationProperties.Name="Pisipildi suurus pikslites"
+                                        DockPanel.Dock="Right"
+                                        Style="{StaticResource Input.Text}"
+                                        Text="{Binding ThumbnailPixelSize}"
+                                        TextAlignment="Right" />
+                                    <StackPanel Margin="0,0,12,0" VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingLabel}" Text="Pisipildi suurus (px)" />
+                                        <TextBlock Style="{StaticResource SettingHint}" Text="Kasutatakse järgmisel pisipiltide genereerimisel." />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource SettingRow}">
+                                <DockPanel>
+                                    <Button
+                                        MinWidth="120"
+                                        Command="{Binding BuildIndexCommand}"
+                                        Content="Koosta indeks"
+                                        DockPanel.Dock="Right"
+                                        IsEnabled="{Binding IsBusy, Converter={x:Static local:NotConverter.Instance}}"
+                                        Style="{StaticResource Button.Secondary}" />
+                                    <StackPanel Margin="0,0,12,0" VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingLabel}" Text="Indeks" />
+                                        <TextBlock Style="{StaticResource SettingHint}" Text="Loeb kaustast perekonnad ja nende tüübid. Pisipilte ei muudeta." />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                            <Border BorderThickness="0" Style="{StaticResource SettingRow}">
+                                <DockPanel>
+                                    <Button
+                                        MinWidth="120"
+                                        Command="{Binding GenerateThumbsAndIndexCommand}"
+                                        Content="Genereeri"
+                                        DockPanel.Dock="Right"
+                                        IsEnabled="{Binding IsBusy, Converter={x:Static local:NotConverter.Instance}}"
+                                        Style="{StaticResource Button.Secondary}" />
+                                    <StackPanel Margin="0,0,12,0" VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingLabel}" Text="Pisipildid ja indeks" />
+                                        <TextBlock Style="{StaticResource SettingHint}" Text="Avab iga muutunud perekonna, salvestab tüüpide pisipildid ja koostab indeksi. Suure teegi puhul võtab aega." />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
 
-        <Border
-            x:Name="BottomLeftCorner"
-            Width="10"
-            Height="10"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Bottom"
-            Background="Transparent"
-            Cursor="SizeNESW"
-            MouseEnter="BottomLeftCorner_MouseEnter"
-            MouseLeave="Edge_MouseLeave"
-            MouseLeftButtonDown="BottomLeftCorner_MouseLeftButtonDown" />
+                    <!--  User categories  -->
+                    <TextBlock Style="{StaticResource Type.Group}" Text="Kasutajakategooriad" />
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <Border Style="{StaticResource SettingRow}">
+                                <DockPanel>
+                                    <Button
+                                        Margin="8,0,0,0"
+                                        Command="{Binding AddUserCategoryCommand}"
+                                        Content="Lisa"
+                                        DockPanel.Dock="Right"
+                                        Style="{StaticResource Button.Secondary}" />
+                                    <TextBox
+                                        AutomationProperties.Name="Uus kategooria"
+                                        KeyDown="AddCategory_KeyDown"
+                                        Style="{StaticResource Input.Text}"
+                                        Tag="Uus kategooria, nt Valgustid"
+                                        Text="{Binding NewUserCategory, UpdateSourceTrigger=PropertyChanged}" />
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource SettingRow}" Padding="10,6">
+                                <ListBox
+                                    x:Name="CategoryList"
+                                    Height="220"
+                                    AutomationProperties.Name="Kategooriad"
+                                    ItemsSource="{Binding AllUserCategories}"
+                                    SelectedItem="{Binding SelectedUserCategory, Mode=TwoWay}"
+                                    Style="{StaticResource MasterList}" />
+                            </Border>
+                            <Border BorderThickness="0" Style="{StaticResource SettingRow}">
+                                <DockPanel>
+                                    <Button
+                                        Command="{Binding RemoveUserCategoryCommand}"
+                                        Content="Eemalda valitud"
+                                        DockPanel.Dock="Right"
+                                        IsEnabled="{Binding SelectedItem, ElementName=CategoryList, Converter={x:Static local:NotNullConverter.Instance}}"
+                                        Style="{StaticResource Button.Destructive}" />
+                                    <TextBlock
+                                        Margin="0,0,12,0"
+                                        VerticalAlignment="Center"
+                                        Style="{StaticResource SettingHint}"
+                                        Text="Nimekiri salvestatakse faili settings.json. Perekonnale määrad kategooriad teegis paremklõpsuga (kehtib kogu valikule); need salvestatakse faili index.json. Hoia nimed lühikesed ja ühtsed." />
+                                </DockPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
 
-        <Border
-            x:Name="BottomRightCorner"
-            Width="10"
-            Height="10"
-            HorizontalAlignment="Right"
-            VerticalAlignment="Bottom"
-            Background="Transparent"
-            Cursor="SizeNWSE"
-            MouseEnter="BottomRightCorner_MouseEnter"
-            MouseLeave="Edge_MouseLeave"
-            MouseLeftButtonDown="BottomRightCorner_MouseLeftButtonDown" />
-
+            <!--  Feedback line: progress of the running task or the result of the last one; counts on the right  -->
+            <DockPanel
+                Grid.Row="2"
+                MinHeight="34"
+                Margin="24,6,24,6"
+                AutomationProperties.LiveSetting="Polite"
+                AutomationProperties.Name="Olek">
+                <TextBlock
+                    Margin="14,0,0,0"
+                    VerticalAlignment="Center"
+                    DockPanel.Dock="Right"
+                    Style="{StaticResource Type.Caption}"
+                    Text="{Binding SummaryText}"
+                    TextWrapping="NoWrap"
+                    Visibility="{Binding IsLibraryPage, Converter={StaticResource BoolToVis}}" />
+                <StackPanel
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}">
+                    <ProgressBar
+                        Width="60"
+                        Height="4"
+                        Margin="0,0,8,0"
+                        VerticalAlignment="Center"
+                        Background="{DynamicResource Surface.Inset}"
+                        BorderThickness="0"
+                        Foreground="{DynamicResource Accent}"
+                        IsIndeterminate="True" />
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        Foreground="{DynamicResource Text.Secondary}"
+                        Text="{Binding BusyText}" />
+                </StackPanel>
+                <StackPanel
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Visibility="{Binding IsBusy, Converter={StaticResource InverseBoolToVis}}">
+                    <materialDesign:PackIcon
+                        Width="15"
+                        Height="15"
+                        Margin="0,0,8,0"
+                        VerticalAlignment="Center"
+                        Visibility="{Binding StatusMessage, Converter={StaticResource EmptyToVis}, ConverterParameter=invert}">
+                        <materialDesign:PackIcon.Style>
+                            <Style TargetType="{x:Type materialDesign:PackIcon}">
+                                <Setter Property="Kind" Value="CheckCircleOutline" />
+                                <Setter Property="Foreground" Value="{DynamicResource Status.Ok}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding StatusIsError}" Value="True">
+                                        <Setter Property="Kind" Value="AlertCircleOutline" />
+                                        <Setter Property="Foreground" Value="{DynamicResource Status.Error}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </materialDesign:PackIcon.Style>
+                    </materialDesign:PackIcon>
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        Foreground="{DynamicResource Text.Secondary}"
+                        Text="{Binding StatusMessage}"
+                        TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </DockPanel>
+        </Grid>
     </Grid>
 </Window>

@@ -31,6 +31,7 @@ namespace Family_Library.Revit.ExternalEvents
 
         public void Execute(UIApplication app)
         {
+            LastRunFailed = false;
             try
             {
                 if (Request.TaskType == LibraryTaskType.None)
@@ -59,7 +60,8 @@ namespace Family_Library.Revit.ExternalEvents
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("Family Library", ex.ToString());
+                LastRunFailed = true;
+                UI.Dialogs.LibraryDialogs.Error("Toiming ebaõnnestus", ex.Message, ex.ToString());
             }
             finally
             {
@@ -67,6 +69,9 @@ namespace Family_Library.Revit.ExternalEvents
                 OnCompleted?.Invoke(this, EventArgs.Empty);
             }
         }
+
+        /// <summary>True when the last run ended with an exception (already shown to the user).</summary>
+        public bool LastRunFailed { get; private set; }
 
         public event EventHandler OnCompleted;
         public string GetName() => "Family Library Tasks";
