@@ -1,0 +1,380 @@
+<Window
+    x:Class="Family_Library.UI.ImportWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:conv="clr-namespace:Family_Library.UI.Converters"
+    xmlns:local="clr-namespace:Family_Library.UI"
+    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+    Title="Impordi projektist"
+    Width="920"
+    Height="660"
+    MinWidth="720"
+    MinHeight="440"
+    Background="{DynamicResource Window.Background}"
+    ShowInTaskbar="False"
+    TextOptions.TextFormattingMode="Display"
+    UseLayoutRounding="True"
+    WindowStartupLocation="CenterOwner">
+    <!--  Same frame, materials and controls as the main window (RK Tools / Sentinel design system)  -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome
+            CaptionHeight="52"
+            CornerRadius="0"
+            GlassFrameThickness="0,0,0,1"
+            NonClientFrameEdges="None"
+            ResizeBorderThickness="6"
+            UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!--  Palette + materials are replaced at runtime by ThemeManager  -->
+                <ResourceDictionary Source="pack://application:,,,/Family_Library;component/Revit/UI/Themes/DarkTheme.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Family_Library;component/Revit/UI/Themes/LibraryStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <conv:EmptyToVisibilityConverter x:Key="EmptyToVis" />
+
+            <Style x:Key="CaptionCloseButton" TargetType="{x:Type Button}">
+                <Setter Property="Width" Value="46" />
+                <Setter Property="Height" Value="36" />
+                <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />
+                <Setter Property="IsTabStop" Value="False" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type Button}">
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="#C42B1C" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="#A32519" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!--  Folder combo inside a grid row: compact, borderless until hovered  -->
+            <Style
+                x:Key="RowCombo"
+                BasedOn="{StaticResource Input.Combo}"
+                TargetType="{x:Type ComboBox}">
+                <Setter Property="Height" Value="28" />
+                <Setter Property="IsEditable" Value="True" />
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid
+        x:Name="RootGrid"
+        Background="{DynamicResource Window.Background}"
+        TextElement.FontFamily="{StaticResource Font.Text}"
+        TextElement.FontSize="{StaticResource FontSize.Body}"
+        TextElement.Foreground="{DynamicResource Text.Primary}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="52" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!--  Title area (draggable)  -->
+        <DockPanel Background="Transparent">
+            <Button
+                VerticalAlignment="Top"
+                AutomationProperties.Name="Sulge"
+                Click="CloseButton_Click"
+                DockPanel.Dock="Right"
+                Style="{StaticResource CaptionCloseButton}"
+                ToolTip="Sulge (Esc)">
+                <materialDesign:PackIcon
+                    Width="14"
+                    Height="14"
+                    Kind="WindowClose" />
+            </Button>
+            <StackPanel
+                Margin="24,0,12,0"
+                VerticalAlignment="Center"
+                Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Type.Title}" Text="Impordi projektist" />
+                <TextBlock
+                    Margin="12,3,0,0"
+                    VerticalAlignment="Center"
+                    Style="{StaticResource Type.Secondary}"
+                    Text="Salvesta avatud projekti perekonnad teeki"
+                    TextWrapping="NoWrap" />
+            </StackPanel>
+        </DockPanel>
+
+        <!--  One control row: search, select all / none | target folder for the selection  -->
+        <Grid Grid.Row="1" Margin="24,0,24,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition
+                    Width="*"
+                    MinWidth="160"
+                    MaxWidth="260" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="12" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!--  Search  -->
+            <Border
+                Height="{StaticResource Size.Control}"
+                Background="{DynamicResource Input.Fill}"
+                BorderBrush="{DynamicResource Input.Stroke}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource Radius.Control}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="30" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <materialDesign:PackIcon
+                        Width="15"
+                        Height="15"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Foreground="{DynamicResource Text.Tertiary}"
+                        Kind="Magnify" />
+                    <TextBox
+                        x:Name="SearchTextBox"
+                        Grid.Column="1"
+                        Margin="0,0,8,0"
+                        AutomationProperties.Name="Otsi perekonda"
+                        Style="{StaticResource Input.Bare}"
+                        Tag="Otsi perekonda"
+                        ToolTip="Otsi nime või kategooria järgi (Ctrl+F)"
+                        Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                    <Border
+                        Grid.ColumnSpan="2"
+                        Margin="-2"
+                        BorderBrush="{DynamicResource Focus.Ring}"
+                        BorderThickness="2"
+                        CornerRadius="7"
+                        IsHitTestVisible="False"
+                        Visibility="{Binding IsKeyboardFocusWithin, ElementName=SearchTextBox, Converter={StaticResource BoolToVis}}" />
+                </Grid>
+            </Border>
+
+            <StackPanel
+                Grid.Column="1"
+                Margin="8,0,0,0"
+                Orientation="Horizontal">
+                <Button
+                    Command="{Binding SelectAllCommand}"
+                    Content="Vali kõik"
+                    Style="{StaticResource Button.Plain}"
+                    ToolTip="Vali kõik nähtavad perekonnad" />
+                <Button
+                    Command="{Binding DeselectAllCommand}"
+                    Content="Tühista valik"
+                    Style="{StaticResource Button.Plain}"
+                    ToolTip="Tühista nähtavate perekondade valik" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="3" Orientation="Horizontal">
+                <TextBlock
+                    Margin="0,0,8,0"
+                    VerticalAlignment="Center"
+                    Foreground="{DynamicResource Text.Secondary}"
+                    Text="Sihtkaust valitutele" />
+                <ComboBox
+                    Width="200"
+                    AutomationProperties.Name="Sihtkaust valitutele"
+                    IsEditable="True"
+                    ItemsSource="{Binding AvailableFolders}"
+                    Style="{StaticResource Input.Combo}"
+                    Text="{Binding BatchFolder, UpdateSourceTrigger=PropertyChanged}"
+                    ToolTip="Vali olemasolev kaust või kirjuta uus (luuakse importimisel)" />
+                <Button
+                    Margin="8,0,0,0"
+                    Command="{Binding ApplyBatchFolderCommand}"
+                    Content="Rakenda"
+                    Style="{StaticResource Button.Secondary}"
+                    ToolTip="Määra see kaust kõigile valitud perekondadele" />
+            </StackPanel>
+        </Grid>
+
+        <!--  List surface  -->
+        <Border
+            Grid.Row="2"
+            Margin="24,0,24,0"
+            Style="{StaticResource Surface}">
+            <Grid>
+                <DataGrid
+                    Padding="0,4"
+                    AutomationProperties.Name="Projekti perekonnad"
+                    ItemsSource="{Binding FamiliesView}"
+                    Style="{StaticResource LibraryGrid}">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Width="44" CanUserResize="False">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox
+                                        AutomationProperties.Name="Vali"
+                                        IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource Input.Check}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn
+                            Width="*"
+                            Header="Perekond"
+                            SortMemberPath="FamilyName">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock
+                                        FontWeight="SemiBold"
+                                        Text="{Binding FamilyName}"
+                                        TextTrimming="CharacterEllipsis"
+                                        ToolTip="{Binding FamilyName}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn
+                            Width="170"
+                            Header="Kategooria"
+                            SortMemberPath="Category">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock
+                                        Foreground="{DynamicResource Text.Secondary}"
+                                        Text="{Binding Category}"
+                                        TextTrimming="CharacterEllipsis" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn
+                            Width="64"
+                            Header="Tüüpe"
+                            SortMemberPath="TypeCount">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock
+                                        Foreground="{DynamicResource Text.Secondary}"
+                                        Text="{Binding TypeCount}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Width="220" Header="Sihtkaust">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox
+                                        AutomationProperties.Name="Sihtkaust"
+                                        ItemsSource="{Binding DataContext.AvailableFolders, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        Style="{StaticResource RowCombo}"
+                                        Text="{Binding TargetFolder, UpdateSourceTrigger=LostFocus}"
+                                        ToolTip="Tühi = teegi Families juurkaust" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!--  Collecting: progress instead of an empty grid  -->
+                <StackPanel
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}">
+                    <ProgressBar
+                        Width="120"
+                        Height="4"
+                        Margin="0,0,0,12"
+                        Background="{DynamicResource Surface.Inset}"
+                        BorderThickness="0"
+                        Foreground="{DynamicResource Accent}"
+                        IsIndeterminate="True" />
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        Foreground="{DynamicResource Text.Secondary}"
+                        Text="{Binding Status}" />
+                </StackPanel>
+
+                <!--  Nothing to import  -->
+                <StackPanel
+                    MaxWidth="380"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Visibility="{Binding ShowEmpty, Converter={StaticResource BoolToVis}}">
+                    <materialDesign:PackIcon
+                        Width="36"
+                        Height="36"
+                        Margin="0,0,0,12"
+                        HorizontalAlignment="Center"
+                        Foreground="{DynamicResource Text.Tertiary}"
+                        Kind="PackageVariant" />
+                    <TextBlock
+                        Margin="0,0,0,6"
+                        HorizontalAlignment="Center"
+                        Style="{StaticResource Type.Section}"
+                        Text="Projektis pole imporditavaid perekondi" />
+                    <TextBlock
+                        Style="{StaticResource Type.Secondary}"
+                        Text="Ava projekt, milles on laaditavad perekonnad, ja proovi uuesti. Kohapeal modelleeritud perekondi ei saa importida."
+                        TextAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!--  Floating action bar: count, then the one action  -->
+        <Border
+            Grid.Row="3"
+            MinHeight="52"
+            Margin="24,12,24,16"
+            Padding="14,8,10,8"
+            Style="{StaticResource Floating}">
+            <DockPanel>
+                <Button
+                    MinWidth="160"
+                    Command="{Binding ImportCommand}"
+                    Content="{Binding ImportButtonText}"
+                    DockPanel.Dock="Right"
+                    IsEnabled="{Binding CanImport}"
+                    Style="{StaticResource Button.Primary}"
+                    ToolTip="Salvesta valitud perekonnad teeki, loo pisipildid ja uuenda indeks" />
+                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                    <materialDesign:PackIcon
+                        Width="16"
+                        Height="16"
+                        Margin="0,0,8,0"
+                        VerticalAlignment="Center"
+                        Visibility="{Binding Status, Converter={StaticResource EmptyToVis}, ConverterParameter=invert}">
+                        <materialDesign:PackIcon.Style>
+                            <Style TargetType="{x:Type materialDesign:PackIcon}">
+                                <Setter Property="Kind" Value="InformationOutline" />
+                                <Setter Property="Foreground" Value="{DynamicResource Text.Tertiary}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding StatusIsError}" Value="True">
+                                        <Setter Property="Kind" Value="AlertCircleOutline" />
+                                        <Setter Property="Foreground" Value="{DynamicResource Status.Error}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </materialDesign:PackIcon.Style>
+                    </materialDesign:PackIcon>
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        Foreground="{DynamicResource Text.Secondary}"
+                        Text="{Binding Status}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Margin="12,0,0,0"
+                        VerticalAlignment="Center"
+                        FontWeight="SemiBold"
+                        Text="{Binding SummaryText}" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

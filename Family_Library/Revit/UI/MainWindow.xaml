@@ -997,7 +997,7 @@
                                     </StackPanel>
                                 </DockPanel>
                             </Border>
-                            <Border BorderThickness="0" Style="{StaticResource SettingRow}">
+                            <Border Style="{StaticResource SettingRow}">
                                 <DockPanel>
                                     <Button
                                         MinWidth="120"
@@ -1009,6 +1009,21 @@
                                     <StackPanel Margin="0,0,12,0" VerticalAlignment="Center">
                                         <TextBlock Style="{StaticResource SettingLabel}" Text="Pisipildid ja indeks" />
                                         <TextBlock Style="{StaticResource SettingHint}" Text="Avab iga muutunud perekonna, salvestab tüüpide pisipildid ja koostab indeksi. Suure teegi puhul võtab aega." />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                            <Border BorderThickness="0" Style="{StaticResource SettingRow}">
+                                <DockPanel>
+                                    <Button
+                                        MinWidth="120"
+                                        Command="{Binding ImportFromProjectCommand}"
+                                        Content="Impordi…"
+                                        DockPanel.Dock="Right"
+                                        IsEnabled="{Binding IsBusy, Converter={x:Static local:NotConverter.Instance}}"
+                                        Style="{StaticResource Button.Secondary}" />
+                                    <StackPanel Margin="0,0,12,0" VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingLabel}" Text="Impordi projektist" />
+                                        <TextBlock Style="{StaticResource SettingHint}" Text="Salvestab avatud projekti perekonnad teeki valitud kaustadesse, loob pisipildid ja uuendab indeksi." />
                                     </StackPanel>
                                 </DockPanel>
                             </Border>

@@ -253,6 +253,7 @@ namespace Family_Library.UI.ViewModels
         public ICommand LoadSelectedCommand => new ricaun.Revit.Mvvm.RelayCommand(RunLoadSelected);
         public ICommand AddUserCategoryCommand => new ricaun.Revit.Mvvm.RelayCommand(AddUserCategory);
         public ICommand RemoveUserCategoryCommand => new ricaun.Revit.Mvvm.RelayCommand(RemoveSelectedUserCategory);
+        public ICommand ImportFromProjectCommand => new ricaun.Revit.Mvvm.RelayCommand(OpenImportWindow);
 
         public MainWindowViewModel(UIApplication uiapp)
         {
@@ -717,6 +718,39 @@ namespace Family_Library.UI.ViewModels
             ExternalEventBridge.Handler.Request.LibraryRoot = LibraryRoot;
             ExternalEventBridge.Handler.Request.ThumbnailPixelSize = ThumbnailPixelSize;
             StartTask(LibraryTaskType.GenerateThumbnailsAndIndex, "Genereerin pisipilte ja indeksit…");
+        }
+
+        private Family_Library.UI.ImportWindow _importWindow;
+
+        private void OpenImportWindow()
+        {
+            if (!Directory.Exists(LibraryRoot))
+            {
+                Family_Library.UI.Dialogs.LibraryDialogs.Info("Teegi kaust on valimata",
+                    "Vali enne importimist teegi kaust. Projekti perekonnad salvestatakse sinna.");
+                return;
+            }
+
+            // One import window at a time
+            if (_importWindow != null && _importWindow.IsLoaded)
+            {
+                _importWindow.Activate();
+                return;
+            }
+
+            var win = new Family_Library.UI.ImportWindow(_uiapp, LibraryRoot);
+            win.ViewModel.ImportCompleted += (s, e) => Refresh();
+            win.Closed += (s, e) => _importWindow = null;
+
+            // Owned by the Family Library window so it stays above it and Revit
+            var owner = Family_Library.Revit.UiWindowHost.DialogOwnerWindow;
+            if (owner != null)
+                win.Owner = owner;
+            else
+                win.WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen;
+
+            _importWindow = win;
+            win.Show();
         }
 
         private void RunLoadSelected()

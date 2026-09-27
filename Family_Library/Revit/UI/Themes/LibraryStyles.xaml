@@ -519,6 +519,7 @@
                             </ToggleButton.Template>
                         </ToggleButton>
                         <ContentPresenter
+                            x:Name="ContentSite"
                             Margin="10,0,30,0"
                             HorizontalAlignment="Left"
                             VerticalAlignment="Center"
@@ -527,6 +528,30 @@
                             ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                             IsHitTestVisible="False"
                             TextElement.Foreground="{TemplateBinding Foreground}" />
+                        <!--  Editable combo: type a value or pick one  -->
+                        <TextBox
+                            x:Name="PART_EditableTextBox"
+                            Margin="8,0,30,0"
+                            VerticalAlignment="Center"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            CaretBrush="{DynamicResource Text.Primary}"
+                            Focusable="True"
+                            FontSize="{TemplateBinding FontSize}"
+                            Foreground="{TemplateBinding Foreground}"
+                            IsReadOnly="{TemplateBinding IsReadOnly}"
+                            SelectionBrush="{DynamicResource Accent}"
+                            Visibility="Hidden">
+                            <TextBox.Template>
+                                <ControlTemplate TargetType="{x:Type TextBox}">
+                                    <ScrollViewer
+                                        x:Name="PART_ContentHost"
+                                        Focusable="False"
+                                        HorizontalScrollBarVisibility="Hidden"
+                                        VerticalScrollBarVisibility="Hidden" />
+                                </ControlTemplate>
+                            </TextBox.Template>
+                        </TextBox>
                         <Border
                             x:Name="FocusBd"
                             Margin="-1"
@@ -554,6 +579,11 @@
                         </Popup>
                     </Grid>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsEditable" Value="True">
+                            <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden" />
+                            <Setter Property="Cursor" Value="IBeam" />
+                        </Trigger>
                         <Trigger Property="IsKeyboardFocusWithin" Value="True">
                             <Setter TargetName="FocusBd" Property="Visibility" Value="Visible" />
                         </Trigger>
@@ -820,6 +850,132 @@
         <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
         <Setter Property="ItemContainerStyle" Value="{StaticResource MasterListItem}" />
         <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+    </Style>
+
+    <!--  ============================== DataGrid (as in Sentinel) ==============================  -->
+    <Style x:Key="GridHeader" TargetType="{x:Type DataGridColumnHeader}">
+        <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="{StaticResource FontSize.Secondary}" />
+        <Setter Property="Height" Value="30" />
+        <Setter Property="Padding" Value="10,0" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type DataGridColumnHeader}">
+                    <Grid Background="Transparent">
+                        <Border BorderBrush="{DynamicResource Separator}" BorderThickness="0,0,0,1" />
+                        <DockPanel Margin="{TemplateBinding Padding}">
+                            <Path
+                                x:Name="SortArrow"
+                                Width="8"
+                                Margin="6,0,0,0"
+                                VerticalAlignment="Center"
+                                Data="M 0 0 L 4 4 L 8 0"
+                                DockPanel.Dock="Right"
+                                Stroke="{DynamicResource Text.Secondary}"
+                                StrokeThickness="1.5"
+                                Visibility="Collapsed" />
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </DockPanel>
+                        <Thumb
+                            x:Name="PART_RightHeaderGripper"
+                            Width="6"
+                            HorizontalAlignment="Right"
+                            Cursor="SizeWE"
+                            Opacity="0" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="SortDirection" Value="Ascending">
+                            <Setter TargetName="SortArrow" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="SortArrow" Property="Data" Value="M 0 4 L 4 0 L 8 4" />
+                        </Trigger>
+                        <Trigger Property="SortDirection" Value="Descending">
+                            <Setter TargetName="SortArrow" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="GridRow" TargetType="{x:Type DataGridRow}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="MinHeight" Value="38" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type DataGridRow}">
+                    <Grid>
+                        <Border
+                            x:Name="Bd"
+                            Margin="4,0"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="{StaticResource Radius.Control}" />
+                        <SelectiveScrollingGrid Margin="4,0">
+                            <SelectiveScrollingGrid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </SelectiveScrollingGrid.ColumnDefinitions>
+                            <DataGridCellsPresenter Grid.Column="1" ItemsPanel="{TemplateBinding ItemsPanel}" />
+                        </SelectiveScrollingGrid>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Row.Hover}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Row.SelectedInactive}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="GridCell" TargetType="{x:Type DataGridCell}">
+        <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+        <Setter Property="Padding" Value="10,0" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type DataGridCell}">
+                    <Border Padding="{TemplateBinding Padding}" Background="Transparent">
+                        <ContentPresenter VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="LibraryGrid" TargetType="{x:Type DataGrid}">
+        <Setter Property="AutoGenerateColumns" Value="False" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="RowBackground" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CanUserAddRows" Value="False" />
+        <Setter Property="CanUserDeleteRows" Value="False" />
+        <Setter Property="CanUserResizeRows" Value="False" />
+        <Setter Property="CanUserReorderColumns" Value="False" />
+        <Setter Property="GridLinesVisibility" Value="None" />
+        <Setter Property="HeadersVisibility" Value="Column" />
+        <Setter Property="RowHeaderWidth" Value="0" />
+        <Setter Property="SelectionUnit" Value="FullRow" />
+        <Setter Property="SelectionMode" Value="Single" />
+        <Setter Property="FontSize" Value="{StaticResource FontSize.Body}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+        <Setter Property="ColumnHeaderStyle" Value="{StaticResource GridHeader}" />
+        <Setter Property="RowStyle" Value="{StaticResource GridRow}" />
+        <Setter Property="CellStyle" Value="{StaticResource GridCell}" />
+        <Setter Property="EnableRowVirtualization" Value="True" />
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
     </Style>
 
     <!--  ============================== Scrollbars (thin, macOS-like) ==============================  -->

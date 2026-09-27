@@ -50,20 +50,15 @@ namespace Family_Library.UI
             SizeChanged += (s, e) => UpdateLayoutMode();
             StateChanged += MainWindow_StateChanged;
             PreviewKeyDown += OnPreviewKeyDown;
+            EscapeGuard.Attach(this, HandleEscapeKey);
         }
 
         // ------------------------------------------------------------------ Escape and minimize (as in CAD Manager)
         //
-        // Revit treats Escape in a modeless window as "cancel command" and minimizes / deactivates the window.
-        // Escape is consumed before Revit sees it (thread pre-process + window hook), and minimize requests that
-        // did not come from our own minimize button or the placement flow are refused.
+        // Escape never reaches Revit (EscapeGuard). Minimize requests that did not come from our own minimize button
+        // or the placement flow are refused, because Revit minimizes modeless windows on some keys.
 
-        private const int WmKeyDown = 0x0100;
-        private const int WmKeyUp = 0x0101;
-        private const int WmSysKeyDown = 0x0104;
-        private const int WmSysKeyUp = 0x0105;
         private const int WmSysCommand = 0x0112;
-        private const int EscapeVirtualKey = 0x1B;
         private const int ScMinimize = 0xF020;
 
         private HwndSource _windowSource;
@@ -73,47 +68,18 @@ namespace Family_Library.UI
         {
             _windowSource = PresentationSource.FromVisual(this) as HwndSource;
             _windowSource?.AddHook(WindowHwndHook);
-            ComponentDispatcher.ThreadPreprocessMessage += ComponentDispatcher_ThreadPreprocessMessage;
         }
 
         private void MainWindow_Closed(object sender, EventArgs e)
         {
             _windowSource?.RemoveHook(WindowHwndHook);
             _windowSource = null;
-            ComponentDispatcher.ThreadPreprocessMessage -= ComponentDispatcher_ThreadPreprocessMessage;
-        }
-
-        private void ComponentDispatcher_ThreadPreprocessMessage(ref MSG message, ref bool handled)
-        {
-            if (handled || !IsActive || message.wParam.ToInt64() != EscapeVirtualKey)
-                return;
-
-            var isKeyMessage = message.message == WmKeyDown || message.message == WmKeyUp ||
-                               message.message == WmSysKeyDown || message.message == WmSysKeyUp;
-            if (!isKeyMessage)
-                return;
-
-            if (message.message == WmKeyDown || message.message == WmSysKeyDown)
-                HandleEscapeKey();
-
-            // Consume both key-down and key-up so Revit never sees Escape.
-            handled = true;
         }
 
         private IntPtr WindowHwndHook(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
             if (message == WmSysCommand && (wParam.ToInt64() & 0xFFF0) == ScMinimize && !_allowExplicitMinimize)
-            {
                 handled = true;
-                return IntPtr.Zero;
-            }
-
-            if ((message == WmKeyDown || message == WmSysKeyDown) && wParam.ToInt64() == EscapeVirtualKey)
-            {
-                HandleEscapeKey();
-                handled = true;
-            }
-
             return IntPtr.Zero;
         }
 
@@ -270,12 +236,6 @@ namespace Family_Library.UI
                 _vm.CurrentPage = "Library";
                 SearchTextBox.Focus();
                 SearchTextBox.SelectAll();
-                e.Handled = true;
-            }
-            else if (e.Key == Key.Escape)
-            {
-                // Normally consumed earlier by the pre-process hook; this is the fallback.
-                HandleEscapeKey();
                 e.Handled = true;
             }
         }

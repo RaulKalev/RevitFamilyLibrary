@@ -124,7 +124,7 @@ namespace Family_Library.Services
             }
         }
 
-        private static string GetFamiliesFolder(string libraryRoot)
+        internal static string GetFamiliesFolder(string libraryRoot)
         {
             var families = Path.Combine(libraryRoot, "Families");
 
